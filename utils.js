@@ -1112,7 +1112,7 @@ let utl = {
 
 	// DRAWING PRIMITIVES
 	mark: (inR, outR, color) => {
-		ci = new Path.Circle({
+		ci = new paper.Path.Circle({
 			strokeWidth: 1,
 			strokeColor: color,
 			center: vc,
