@@ -1112,7 +1112,7 @@ let utl = {
 
 	// DRAWING PRIMITIVES
 	mark: (inR, outR, color) => {
-		ci = new Path.Circle({
+		let ci = new Path.Circle({
 			strokeWidth: 1,
 			strokeColor: color,
 			center: vc,
@@ -1120,17 +1120,17 @@ let utl = {
 		})
 		
 		ci.splitAt(ci.segments[2].location)
-		cc = ci.splitAt(ci.segments[1].location)
+		let cc = ci.splitAt(ci.segments[1].location)
 		ci.remove()
 		
-		path = cc.clone()
+		let path = cc.clone()
 		
-		for (i = 0; i < 3; i++) {
+		for (let i = 0; i < 3; i++) {
 			
-			clo = cc.clone()
+			let clo = cc.clone()
 			clo.rotate(-90 * (i + 1))
 			
-			o = inR + (outR - inR) / 2
+			let o = inR + (outR - inR) / 2
 			
 			if (i === 0) [x,y] = [0, o]
 			if (i === 1) [x,y] = [o, o]
