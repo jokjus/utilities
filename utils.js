@@ -2,6 +2,7 @@
 paper = paper && Object.prototype.hasOwnProperty.call(paper, 'default') ? paper['default'] : paper;
 
 let utl = {
+	C: (p,r,c) => new paper.Path.Circle({center: p, radius: r, fillColor: c }),
     // Mathematical helpers -----------------------------------------
     isEven: (n) => {
         return n % 2 === 0;
