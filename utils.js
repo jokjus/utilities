@@ -3,6 +3,7 @@ paper = paper && Object.prototype.hasOwnProperty.call(paper, 'default') ? paper[
 
 let utl = {
 	C: (p,r,c) => new paper.Path.Circle({center: p, radius: r, fillColor: c }),
+	R: (a) => Math.random() * a,
     // Mathematical helpers -----------------------------------------
     isEven: (n) => {
         return n % 2 === 0;
@@ -1147,5 +1148,34 @@ let utl = {
 		path.position = vc
 		
 		return path
+	},
+
+	khronos: (rings, lines, outer, inner, rotation, colors) => {
+		let res = new paper.Group()
+		let cols = []
+		ringWidth = (outer-inner) / 2
+		zero = new paper.Point(0,0)
+
+		for (let i=0;i<lines;i++) {
+			cols.push( utl.getR(colors) )
+		}
+
+		for (let i=0;i<rings;i++) {
+			let ring = new Group()
+			let v = new paper.Point({angle:0, length: ringWidth})
+			
+			for (let j=0;j<lines;j++) {
+				new Path({
+					segments: [ zero, zero + v ],
+					strokeWidth: 1,
+					strokeColor: cols[j]
+				})
+
+				v.angle += 360/lines
+			}
+
+			ring.rotate(utl.R(rotation))
+
+		}
 	}
 };
