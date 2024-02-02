@@ -1177,5 +1177,46 @@ let utl = {
 			ring.rotate(utl.R(rotation))
 
 		}
+	},
+
+	getCutAndScore: (paths) => {
+		res = new paper.Group()
+
+		// Unite all paths in the paths array
+		var join = paths.reduce(function (result, item, counter) {
+			return result.unite(item, {insert:false});
+		});
+		
+		joined = new paper.Path({segments: join.segments, ...opt, closed:true, parent: res})
+				
+		folds = []
+		
+		paths.forEach(it => {
+			it.curves.forEach(c => {
+				
+				// Check if there is no existing path with the same start and end points
+				if (!folds.some(fold => {
+					const fs0 = fold.segments[0].point;
+					const fs1 = fold.segments[1].point;
+				
+					return (fs0.equals(c.point1) || fs0.equals(c.point2)) && (fs1.equals(c.point1) || fs1.equals(c.point2));
+				})) {
+					// Create a new path only if no matching path is found
+					const pp = new paper.Path({ segments: [c.point1, c.point2], strokeColor: 'orange', strokeWidth: 2, parent:res })
+					
+					folds.push(pp)
+		
+					// Check if path is in the middle of the shape of is it a boundary of a shape
+					const cl = pp.getLocationAt(pp.length / 2)
+					if (!joined.contains(cl.point + cl.normal) || !joined.contains(cl.point - cl.normal)) {
+						pp.remove()
+					}
+				}
+			})
+		})
+
+		return res
+		
+		//paths.forEach(it => it.remove())
 	}
 };
