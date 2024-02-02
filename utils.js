@@ -1195,7 +1195,7 @@ let utl = {
 			return result.unite(item, {insert:false});
 		});
 		
-		joined = new paper.Path({segments: join.segments, ...opt, closed:true, parent: res})
+		joined = new paper.Path({segments: join.segments,strokeColor:'black', strokeWidth:1, closed:true, parent: res})
 				
 		folds = []
 		
