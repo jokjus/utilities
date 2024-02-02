@@ -737,7 +737,8 @@ let utl = {
 	   pathCopy2.fillColor = null
 	
 	   pathCopy.remove()
-	
+	   resG.pivot = resG.bounds.center
+	   
 	   return resG
 		
 	},
@@ -1151,27 +1152,34 @@ let utl = {
 	},
 
 	khronos: (rings, lines, outer, inner, rotation, colors) => {
-		let res = new paper.Group()
+		let khrono = new paper.Group()
 		let cols = []
-		ringWidth = (outer-inner) / 2
-		zero = new paper.Point(0,0)
+		let ringWidth = (outer-inner) / rings
+		let zero = new paper.Point(0,0)
 
 		for (let i=0;i<lines;i++) {
 			cols.push( utl.getR(colors) )
 		}
 
 		for (let i=0;i<rings;i++) {
-			let ring = new Group()
-			let v = new paper.Point({angle:0, length: ringWidth})
+			let ring = new paper.Group({parent: khrono})
+
+			let start = new paper.Point({angle:0, length: inner + (ringWidth * i)})
+			let end = new paper.Point({angle:0, length: inner + ringWidth + (ringWidth * i) })
+
+			// console.log(zero + v)
 			
 			for (let j=0;j<lines;j++) {
-				new Path({
-					segments: [ zero, zero + v ],
+				
+				new paper.Path({
+					segments: [ start, end ],
 					strokeWidth: 1,
-					strokeColor: cols[j]
+					strokeColor: cols[j],
+					parent: ring
 				})
-
-				v.angle += 360/lines
+				
+				start.angle += 360/lines
+				end.angle += 360/lines
 			}
 
 			ring.rotate(utl.R(rotation))
