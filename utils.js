@@ -80,13 +80,13 @@ let utl = {
 
     getSeg: (path, x, y, hIn, hOut) => {
 
-        po = utils.getPo(path, x, y);
+        po = utl.getPo(path, x, y);
         se = new paper.Segment({
             point: po,
         });
         if (hIn || hOut) {
-            poIn = utils.getPo(path, hIn[0], hIn[1]);
-            poOut = utils.getPo(path, hOut[0], hOut[1]);
+            poIn = utl.getPo(path, hIn[0], hIn[1]);
+            poOut = utl.getPo(path, hOut[0], hOut[1]);
             se.handleIn = poIn.subtract(po);
             se.handleOut = poOut.subtract(po);
         }
@@ -162,7 +162,7 @@ let utl = {
                 [houtx, houty] = toRelative(myp.add(s.handleOut));
 
                 resP.add(
-					utils.getSeg(to, x, y, [hinx, hiny], [houtx, houty])
+					utl.getSeg(to, x, y, [hinx, hiny], [houtx, houty])
 				);
 				result.addChild(resP)
             });
@@ -565,7 +565,7 @@ let utl = {
 
 			// Recurse as long as there are groups left
 			if (!flag) {
-				utils.ungroup(item)
+				utl.ungroup(item)
 			}
 		}
 	},
@@ -1183,8 +1183,8 @@ let utl = {
 			}
 
 			ring.rotate(utl.R(rotation))
-
 		}
+		return khrono
 	},
 
 	getCutAndScore: (paths) => {
@@ -1200,31 +1200,35 @@ let utl = {
 		folds = []
 		
 		paths.forEach(it => {
-			it.curves.forEach(c => {
+			it.curves.forEach(crv => {
 				
 				// Check if there is no existing path with the same start and end points
 				if (!folds.some(fold => {
 					const fs0 = fold.segments[0].point;
 					const fs1 = fold.segments[1].point;
 				
-					return (fs0.equals(c.point1) || fs0.equals(c.point2)) && (fs1.equals(c.point1) || fs1.equals(c.point2));
+					return (fs0.equals(crv.point1) || fs0.equals(crv.point2)) && (fs1.equals(crv.point1) || fs1.equals(crv.point2));
 				})) {
 					// Create a new path only if no matching path is found
-					const pp = new paper.Path({ segments: [c.point1, c.point2], strokeColor: 'orange', strokeWidth: 2, parent:res })
+					const pp = new paper.Path({ segments: [crv.point1, crv.point2], strokeColor: 'orange', strokeWidth: 2, parent:res })
 					
 					folds.push(pp)
 		
 					// Check if path is in the middle of the shape of is it a boundary of a shape
 					const cl = pp.getLocationAt(pp.length / 2)
-					if (!joined.contains(cl.point + cl.normal) || !joined.contains(cl.point - cl.normal)) {
+					no = cl.normal
+					no.length = 0.01
+
+					if (!joined.contains(cl.point.add(no)) || !joined.contains(cl.point.subtract(no))) {
 						pp.remove()
 					}
 				}
 			})
 		})
 
+		// console.log(res)
+		paths.forEach(it => it.remove())
 		return res
 		
-		//paths.forEach(it => it.remove())
 	}
 };
