@@ -67,6 +67,7 @@ let utl = {
     },
 
     getPo: (path, x, y) => {
+		// console.log(path)
         lx1 = path.curves[0];
         lx2 = path.curves[2];
         cur = new paper.Curve(
@@ -1230,5 +1231,57 @@ let utl = {
 		paths.forEach(it => it.remove())
 		return res
 		
+	},
+
+	compass: (points, rad) => {
+		let res = new paper.Group()
+
+		let opt = {
+			strokeColor: 'blue',
+			strokeWidth: 1,
+			parent: res
+		}
+
+		let cnt = new paper.Point(0,0)
+	
+		st = new paper.Path.Star({
+			center: cnt,
+			points: points,
+			radius1: rad/2.5,
+			radius2: rad,
+			...opt
+		})
+
+		st.rotate(45)
+	
+		let pa = (s) => new paper.Path({segments: s, ...opt})
+		let Ci = (p, r) => new paper.Path.Circle({center: p, radius: r, ...opt})
+	
+		pts = st.segments
+	
+		for (let i=0;i<points;i++) {
+			pa([ pts[i], cnt])	
+			pa([pts[i+points], cnt])
+			te = Ci(cnt.add(new paper.Point({angle: (360/points*i)+45, length:rad/1.3 })), rad / 10)
+		}
+				
+		return res
+	
+	},
+	
+	isPointOnLine: (point, lineStart, lineEnd) => {
+		// Vector from lineStart to lineEnd
+		var lineVector = lineEnd.subtract(lineStart);
+		
+		// Vector from lineStart to the point
+		var pointVector = point.subtract(lineStart);
+	
+		// Check if the vectors are collinear by cross product
+		var isCollinear = lineVector.cross(pointVector) === 0;
+	
+		// Check if the point is within the bounds of the segment
+		var isWithinBounds = pointVector.dot(lineVector) >= 0 && pointVector.dot(lineVector) <= lineVector.dot(lineVector);
+	
+		return isCollinear && isWithinBounds;
 	}
 };
