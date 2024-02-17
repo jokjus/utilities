@@ -1115,11 +1115,11 @@ let utl = {
     },
 
 	// DRAWING PRIMITIVES
-	mark: (inR, outR, color, strokeWidth) => {
+	mark: (inR, outR, color, strokeWidth, pnt) => {
 		let ci = new paper.Path.Circle({
 			strokeWidth: strokeWidth,
 			strokeColor: color,
-			center: vc,
+			center: pnt,
 			radius:(outR - inR) / 4
 		})
 		
@@ -1147,7 +1147,7 @@ let utl = {
 		path.closed = true
 		cc.remove()
 		
-		path.position = vc
+		path.position = pnt
 		
 		return path
 	},
