@@ -9,7 +9,7 @@ let utl = {
         return n % 2 === 0;
     },
     isOdd: (n) => {
-        return !utils.isEven(n);
+        return !utl.isEven(n);
     },
     getRandomInt: (min, max) => {
         return Math.floor(Math.random() * Math.floor(max - min)) + min;
@@ -261,7 +261,7 @@ let utl = {
 				segments: [myp, myp2, nextp2, nextp],             
 				closed: true
 			})
-			result.addChild(utils.mapArt(artClone, seg, 1))
+			result.addChild(utl.mapArt(artClone, seg, 1))
 
 			seg.remove()
 			counter++
@@ -295,25 +295,24 @@ let utl = {
 	},
 	
 	// Do the hidden line removal
-	occlusion: (item, callback, cookieCutter = false, verbose = true) => {
+	occlusion: (item, callback, cookieCutter = false, verbose = true, ungroupCompounds=false) => {
 		console.log('occlusion starting')
 		console.log('ungrouping items')
-		utils.ungroup(item)
+		utl.ungroup(item)
 		
-		console.log('ungrouping items')
-		let resultG = new paper.Layer()
+		let resultG = new paper.Group()
 
 		var mask = new paper.Path()
 
 		// This function assumes that input item has children
 		var elCount = item.children.length
-
+		
 		// Initialize counter
 		var x = elCount - 1
 
 		// Loop through all elements in occludable item
 		function loop() {
-
+			if (verbose) console.log('processing ' + (elCount - x) + '/' + elCount)
 			var el = item.children[x]
 			
 			// use variables instead of accessing properties for possible speed advantage
@@ -399,13 +398,12 @@ let utl = {
 						}
 					}
 
-					// If cookie cutter option IS selected
-					else {
-						
-						if (d.closed) subtractAndUnite(d, d, fillC, strokeC)
-						else subtractAndUnite(d, false, fillC, strokeC)
-						// subtractAndUnite(d, false, origColor)
-					}
+				// If cookie cutter option IS selected
+				else {
+					if (d.closed) subtractAndUnite(d, d, fillC, strokeC)
+					else subtractAndUnite(d, false, fillC, strokeC)
+					// subtractAndUnite(d, false, origColor)
+				}
 					
 				// }
 			}
@@ -422,37 +420,33 @@ let utl = {
 				
 				if (verbose) console.log('DONE, cleanup')
 		
-				// mask = new paper.Path({
-				// 	name: 'unitedSprites'
-				// })
-
 				mask.remove()
 
 				// Reverse order
 				resultG.reverseChildren()
 
-				// Ungroup possible resulted compound paths
-				utils.ungroup(resultG, false)		
+				// Ungroup possible resulted compound paths, this is not always desired behaviour
+				if (ungroupCompounds) utl.ungroup(resultG, false)		
 
 				// Remove original paths
 				item.remove()
 
 				// Clean up small lines smaller than threshold						
-				// toDelete = []
+				toDelete = []
 
-				// limit = c.removeSmallLines * 0.352
+				limit = 0.352
 
-				// resultLayer.children.forEach(path => {
-				// 	if ((path.bounds.height < limit && path.bounds.width < limit) || path.length < limit) {
-				// 		toDelete.push(path)
-				// 	}
-				// })
+				resultG.children.forEach(path => {
+					if ((path.bounds.height < limit && path.bounds.width < limit) || path.length < limit) {
+						toDelete.push(path)
+					}
+				})
 
-				// if (verbose) console.log('Small lines to delete found: ' + toDelete.length)
+				if (verbose) console.log('Small lines to delete found: ' + toDelete.length)
 
-				// toDelete.forEach(p => {
-				// 	p.remove()
-				// })
+				toDelete.forEach(p => {
+					p.remove()
+				})
 
 				
 				
@@ -556,7 +550,7 @@ let utl = {
 				}
 				
 				// Have to deal with clipping groups first
-				if (el.clipped) utils.flattenClipping(el)
+				if (el.clipped) utl.flattenClipping(el)
 
 				// Move children to parent element and remove the group
 				el.parent.insertChildren(el.index, el.removeChildren())
@@ -575,7 +569,7 @@ let utl = {
 	flattenClipping: (clipGroup) => {
 
 		// Ungroup everything inside a clipping group
-		utils.ungroup(clipGroup)
+		utl.ungroup(clipGroup)
 
 		// Find the clipping mask (it should be the first layer but cannot be certain)
 		var clipMasks = clipGroup.children.filter(obj => {
@@ -985,7 +979,7 @@ let utl = {
         return hex;
     },
     rgb2hex: (r, g, b) => {
-        return '#' + utils.componentToHex(r) + utils.componentToHex(g) + utils.componentToHex(b);
+        return '#' + utl.componentToHex(r) + utl.componentToHex(g) + utl.componentToHex(b);
     },
     invertColor: (color) => {
         if (color != null) {
@@ -1014,7 +1008,7 @@ let utl = {
     // Animation related functions -----------------------------------------
     easingAnims: (min, max, easing, phase) => {
         phase = animFrame / (document.getElementById('animSpeed').value * 10);
-        var animValue = eval('utils.' + easing + '(phase)');
+        var animValue = eval('utl.' + easing + '(phase)');
         var range = max - min;
         if (phase >= 1) {
             animDir = 0;
@@ -1067,8 +1061,8 @@ let utl = {
     },
     easeInOutBounce: (x) => {
         return x < 0.5
-            ? (1 - utils.easeOutBounce(1 - 2 * x)) / 2
-            : (1 + utils.easeOutBounce(2 * x - 1)) / 2;
+            ? (1 - utl.easeOutBounce(1 - 2 * x)) / 2
+            : (1 + utl.easeOutBounce(2 * x - 1)) / 2;
     },
     easeInOutExpo: (x) => {
         return x === 0
