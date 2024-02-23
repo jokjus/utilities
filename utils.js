@@ -294,6 +294,198 @@ let utl = {
 		return item
 	},
 	
+
+	occlusionX: (item, cookie=false, origColors=false, smallLines=0.1, verbose=true) => {
+		utl.ungroup(item)
+		res = new paper.Group()
+
+		// function process(items) {
+		// 	origs = items
+		// 	console.log('originaaleja: ' + origs.length)
+			
+		// 	valids = []
+			
+		// 	len = origs.length
+		
+		// 	for (o = 0; o < len; o++) {
+		// 		el = origs[o]
+				
+		// 		validEl = true
+		// 		// stray point object with fill but no dimensions
+		// 		if (el.bounds.height == 0 && el.bounds.width == 0) {
+		// 			validEl = false
+		// 		}
+				
+		// 		//invisible object, no need to process
+		// 		if (el.fillColor== null && el.strokeColor == null) {
+		// 			validEl = false
+		// 		}
+		
+		// 		if (validEl) {
+		
+		// 			// take a clone of a current sprite
+		// 			var ori = el.clone()
+		// 			ori.parent = processed
+				
+		// 			// If element is to be processed
+		// 			if (ori instanceof Shape) {
+		// 				if (c.verbose) console.log('Processed elem is a SHAPE')
+		// 				d = ori.toPath()
+		// 				ori.remove()				
+		// 			}
+		
+		// 			// If there are lines with fillcolor applied, close them (these are visually filled areas so we assume they should be processed as such)
+		// 			// if (el.fillColor != null && el.closed == false) {
+		// 			// 	el.closePath()
+		// 			// }	
+		
+		// 			// If element is a stroke with a wider than threshold width, expand it
+		// 			if (ori.strokeWidth > c.lineWidthThreshold && (c.expandAllLines || !ori.closed)) {
+		// 				console.log('expand')
+		// 				d = PaperOffset.offsetStroke(ori, ori.strokeWidth, { cap: el.strokeCap, join: el.strokeJoin })							
+		// 				ori.remove()
+		// 			}
+		
+		// 			// valids.push(d)
+		// 		}		 		
+		// 	}
+		
+			
+		
+		
+		// 	console.log('prosessoituja originaaleja: ' + processed.children.length)
+		// }
+		let origs = item.children
+		let len = origs.length
+		let x = len - 1 
+
+		function loop() {
+
+			el = origs[x]
+
+			if (verbose && x % 10 == 0) console.log('processing ' + (len - x) + '/' + len)
+			
+			// use variables instead of accessing properties for possible speed advantage
+			let fillC, strokeC
+			
+			let opt = {strokeColor: el.strokeColor, strokeWidth: el.strokeWidth, fillColor: el.fillColor}
+
+			if (el.fillColor != null) fillC = el.fillColor.clone()
+			if (el.strokeColor != null) strokeC = el.strokeColor.clone()
+			origColor = strokeC == null ? fillC : strokeC
+			
+			strokeW = el.strokeWidth
+			closed = el.closed
+			
+			rect1 = el.bounds
+			ints = []
+			
+			let flat
+		
+			// Check for elements above the current element
+			for (let k=x+1;k<len;k++) {
+
+				testEl = origs[k]			
+				rect2 = testEl.bounds
+
+				function checkOverlap(r1, r2) {
+					return !(r1.right < r2.left || r1.bottom < r2.top || r1.left > r2.right || r1.top > r2.bottom);				
+				}
+
+				if (testEl.closed) {
+					if (checkOverlap(rect1, rect2)) ints.push(testEl)					
+				}
+			}
+
+			intLen = ints.length
+
+			// If there are items in front of current element, then create the mask and do the subtraction 
+			if (intLen > 0) {
+				let mask = new paper.Path()
+				
+				ints.forEach(int => {
+					mask = mask.unite(int, {insert: false, trace: false})    
+				})
+
+				traceMethod = el.closed || el.type != undefined ? true : false
+								
+				// Open current path if we don't want cookie cutter type results
+				if (!cookie && el.closed) {
+					tmp = el.clone()
+					tmp = tmp.splitAt(tmp.firstSegment.location)
+					flat = tmp.subtract(mask, {trace: false})
+					tmp.remove()
+				}
+				else  {
+					flat = el.subtract(mask, {trace: traceMethod})
+				}
+				mask.fillColor = 'red'
+				mask.remove()
+			}
+			else {
+				flat = el.clone()
+			}
+
+			// Set colors in runtime
+			if (!origColors) {
+				flat.strokeColor = 'black'
+				flat.fillColor = null
+			
+			} else {
+				flat.fillColor = opt.fillColor
+				flat.strokeColor = opt.strokeColor
+				flat.strokeWidth = opt.strokeWidth				
+			}
+			
+			flat.parent = res
+		
+			x--
+
+			// Check if the loop should continue
+			if (x >= 0) {
+
+					loop()
+
+			} else {
+
+				// Clean up here
+				item.remove()				
+
+				res.reverseChildren()
+				
+				dels = []
+				res.children.forEach(p => {
+					if (p.length < smallLines * 0.352) dels.push(p)
+				})
+				
+				dels.forEach(d => {	d.remove() })
+				
+				if (origColors) {
+					res.children.forEach(path => {
+						if (path.strokeColor === null) {						
+							path.strokeColor = path.fillColor
+						}
+						// path.fillColor = null
+						// path.strokeWidth = 1
+					})
+				}
+				
+				// Set color attributes
+				if (!origColors) {
+					res.strokeColor = 'black'
+					res.fillColor = null
+					res.strokeWidth = 1
+				}
+
+				return res
+
+			}
+		}
+
+		loop()
+	},
+
+
 	// Do the hidden line removal
 	occlusion: (item, callback, cookieCutter = false, verbose = true, ungroupCompounds=false) => {
 		console.log('occlusion starting')
@@ -312,7 +504,7 @@ let utl = {
 
 		// Loop through all elements in occludable item
 		function loop() {
-			if (verbose) console.log('processing ' + (elCount - x) + '/' + elCount)
+			if (verbose && x % 10 == 0) console.log('processing ' + (elCount - x) + '/' + elCount)
 			var el = item.children[x]
 			
 			// use variables instead of accessing properties for possible speed advantage
@@ -623,7 +815,7 @@ let utl = {
 			var newEl = inner.intersect(mask, {trace: traceMethod})
 
 			// If the result is a compound path, restore original appearance after boolean operation	
-			if (newEl instanceof CompoundPath) {
+			if (newEl instanceof paper.CompoundPath) {
 				newEl.children.forEach(el => el.fillColor = origFill)
 				newEl.children.forEach(el => el.strokeColor = origStrokeColor)
 				newEl.children.forEach(el => el.strokeWidth = origStrokeWidth)
@@ -739,17 +931,24 @@ let utl = {
 	},
 
 	// Hatch fill any shape
-	hatchFillAny: (origpath, penW, angle, color, debug=false) => {
+	hatchFillAny: (origpath, penW, angle, color, debug=false, deleteOriginal=false) => {
 		
 		let commonPivot = new paper.Point(0,0)
 		penW = penW * 2.83465 // convert pen width from mm to points
 
+		penW = penW * 2.83465 // convert pen width from mm to points
+
+		
+		
 		let origColor = origpath.fillColor ? origpath.fillColor : 'black'
 		if (color) origColor = color
-
+		
 		resG = new paper.Group({pivot: commonPivot})
-
+		
 		path = PaperOffset.offset(origpath, -penW)
+		pathCopy2 = PaperOffset.offset(origpath, -.5 * penW)
+
+
 		path.pivot = commonPivot
 		path.rotate(angle)
 
@@ -936,6 +1135,11 @@ let utl = {
 		}
 		resG.rotate(-angle)
 		indentedOutline.parent = resG
+
+		pathCopy2.parent = resG
+		pathCopy2.strokeColor = color
+		pathCopy2.strokeWidth = penW
+		pathCopy2.fillColor = null
 
 		resG.strokeWidth = penW
 		resG.fillColor = null
@@ -1262,6 +1466,82 @@ let utl = {
 		return res
 	
 	},
+
+	stripedRect: (w, h, stripeGap, stripeWidth, angle, bgColor, stripeColor) => {
+		res = new paper.Group({clipped: true})
+
+		bg = new paper.Path.Rectangle({
+			point: (0,0),
+			size: [w,h],
+			fillColor: bgColor,
+			parent: res
+		})
+
+		bg.rotate(angle)
+
+		maxW = bg.bounds.width
+		gapped = stripeWidth + stripeGap
+		stripeCount = Math.floor(maxW / gapped) +1
+
+		for (let i=0;i<stripeCount;i++) {
+			f = new paper.Path.Rectangle({
+				point: bg.bounds.topLeft.add(new paper.Point(i*gapped, 0)),
+				size: [stripeWidth, bg.bounds.height],
+				fillColor: stripeColor,
+				parent: res
+			})
+		}
+
+		mask = bg.clone()
+		mask.fillColor = null
+		mask.clipMask = true
+
+		res.rotate(-angle)
+
+		utl.flattenClipping(res)
+
+		return res
+
+	},
+
+	circleGrid: (w, h, xc, yc, size = 0.7, gap = 0.3, pad = 0.1, bgColor, circleColor) => {
+		res = new paper.Group();
+	
+		bg = new paper.Path.Rectangle({
+			point: [0, 0],
+			size: [w, h],
+			fillColor: bgColor,
+			parent: res
+		});
+	
+		// Adjusting max dimensions considering padding
+		maxW = w - pad * 2 * w;
+		maxH = h - pad * 2 * h;
+	
+		// Calculating the space each circle and gap will occupy
+		cPlusG = maxW/(xc-gap)
+		circleSize = cPlusG * size
+		gapSize = cPlusG * gap
+		totalSize = circleSize + gapSize
+	
+		// Start position considering padding
+		startX = pad*w + circleSize/2
+		startY = pad*h + circleSize/2
+	
+		for (let y = 0; y < yc; y++) {
+			for (let x = 0; x < xc; x++) {
+				new paper.Path.Circle({
+					center: new paper.Point(startX + x * totalSize, startY + y * totalSize),
+					radius: circleSize / 2,
+					fillColor: circleColor,
+					parent: res
+				});
+			}
+		}
+	
+		return res;
+	},
+	
 	
 	isPointOnLine: (point, lineStart, lineEnd) => {
 		// Vector from lineStart to lineEnd
@@ -1277,5 +1557,64 @@ let utl = {
 		var isWithinBounds = pointVector.dot(lineVector) >= 0 && pointVector.dot(lineVector) <= lineVector.dot(lineVector);
 	
 		return isCollinear && isWithinBounds;
+	},
+
+
+	simplifyPath: function(path, tolerance) {
+		// Helper function to simplify a section of the path
+		const simplifySection = (start, end) => {
+			if (end - start < 2) {
+				return [path.segments[start], path.segments[end]];
+			}
+	
+			let maxDistance = 0;
+			let maxIndex = 0;
+			for (let i = start + 1; i < end; i++) {
+				let distance = calculateDistanceFromLine(path.segments[i].point, path.segments[start].point, path.segments[end].point);
+				if (distance > maxDistance) {
+					maxDistance = distance;
+					maxIndex = i;
+				}
+			}
+	
+			if (maxDistance > tolerance) {
+				return [
+					...simplifySection(start, maxIndex),
+					...simplifySection(maxIndex, end).slice(1)
+				];
+			} else {
+				return [path.segments[start], path.segments[end]];
+			}
+		};
+	
+		// Calculate the distance from a point to a line
+		const calculateDistanceFromLine = (point, lineStart, lineEnd) => {
+					// First, calculate the differences in x and y coordinates
+					const dx = lineEnd.x - lineStart.x;
+					const dy = lineEnd.y - lineStart.y;
+				
+					// Calculate the numerator of the distance formula
+					const numerator = Math.abs(dy * point.x - dx * point.y + lineEnd.x * lineStart.y - lineEnd.y * lineStart.x);
+				
+					// Calculate the denominator of the distance formula (the length of the line segment)
+					const denominator = Math.sqrt(dx * dx + dy * dy);
+				
+					// Prevent division by zero in case of a degenerate line segment
+					if (denominator === 0) return point.getDistance(lineStart);
+				
+					// Return the distance
+					return numerator / denominator;
+				};
+			
+	
+		// Simplify the path and replace its segments
+		let simplifiedSegments = simplifySection(0, path.segments.length - 1);
+		path.segments = simplifiedSegments;
+	
+		// Return the original path with its segments replaced
+		return path;
 	}
+	
+	
+
 };
