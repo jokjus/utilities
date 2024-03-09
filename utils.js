@@ -1773,7 +1773,7 @@ let utl = {
 //   `"Y88888P"   88          88   `"8bbdP"Y8  
 
 	//There should be equal number of pieces and weights
-	unevenGrid: (gDim ={x:10,y:10}, gSize=20, pieces=[{x:1,y:1},{x:1,y:2},{x:2,y:1},{x:2,y:2}], weights=[10,5,5,5], xDistortF, yDistortF) => {
+	unevenGrid: (gDim ={x:10,y:10}, gSize=20, pieces=[{x:1,y:1},{x:1,y:2},{x:2,y:1},{x:2,y:2}], weights=[5,5,5,5], xDistortF, yDistortF) => {
 		
 		return utl.genPieces(gDim, utl.genGridPoints(gDim, gSize, xDistortF, yDistortF), pieces, weights)
 
