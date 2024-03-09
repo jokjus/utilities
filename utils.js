@@ -21,7 +21,7 @@ let utl = {
     isOdd: (n) => {
         return !utl.isEven(n);
     },
-    getRandomInt: (min, max) => {
+    getRI: (min, max) => {
         return Math.floor(Math.random() * Math.floor(max - min)) + min;
     },
     getDifference: (a, b) => {
@@ -1439,6 +1439,12 @@ let utl = {
                                                                                                       
                                                                                                                  
 	C: (p,r,c) => new paper.Path.Circle({center: p, radius: r, fillColor: c }),
+	centerR: (p, size, c) => { 
+		let res = new paper.Path.Rectangle({point: p, size:size, fillColor:c}) 
+		res.translate(size[0]/2, size[1]/2)
+		return res
+	},
+
 	mark: (inR, outR, color, strokeWidth, pnt) => {
 		let ci = new paper.Path.Circle({
 			strokeWidth: strokeWidth,
@@ -1511,8 +1517,6 @@ let utl = {
 		}
 		return khrono
 	},
-
-
 
 	compass: (points, rad) => {
 		let res = new paper.Group()
@@ -1625,6 +1629,38 @@ let utl = {
 		return res;
 	},
 	
+	polygon: (sides=6, rad=20, thickness=5, color='black', bgColor=null) => {
+
+		let p1 = new paper.Path.RegularPolygon({
+			center: (0,0),
+			sides: sides,
+			radius: rad,
+			fillColor:color
+		})
+
+		let p2 = new paper.Path.RegularPolygon({
+			center: (0,0),
+			sides: sides,
+			radius: rad - thickness,
+			fillColor: color
+		})
+
+		let poly = p1.subtract(p2)
+
+		p1.remove()
+		p2.remove()
+		
+		let res = poly
+
+		if (bgColor) { 
+			let bg = utl.centerR((0,0), [rad*2, rad*2], bgColor) 
+			res = new paper.Group(bg, poly)
+		}
+
+
+		return res
+
+	},
 
 
 
@@ -1728,6 +1764,10 @@ let utl = {
 // Y8,        88  88          88  8b       88  
 //  Y8a.    .a88  88          88  "8a,   ,d88  
 //   `"Y88888P"   88          88   `"8bbdP"Y8  
+
+	// Examples of distort function
+	// const xDistortF = (y) => y * 10 * Math.sin(y)
+	// const yDistortF = (x) => x * 10 * Math.sin(x)
 
 	//There should be equal number of pieces and weights
 	unevenGrid: (gDim ={x:10,y:10}, gSize=20, pieces=[{x:1,y:1},{x:1,y:2},{x:2,y:1},{x:2,y:2}], weights=[5,5,5,5], xDistortF, yDistortF) => {
