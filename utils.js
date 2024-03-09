@@ -1512,50 +1512,7 @@ let utl = {
 		return khrono
 	},
 
-	getCutAndScore: (paths) => {
-		res = new paper.Group()
 
-		// Unite all paths in the paths array
-		var join = paths.reduce(function (result, item, counter) {
-			return result.unite(item, {insert:false});
-		});
-		
-		joined = new paper.Path({segments: join.segments,strokeColor:'black', strokeWidth:1, closed:true, parent: res})
-				
-		folds = []
-		
-		paths.forEach(it => {
-			it.curves.forEach(crv => {
-				
-				// Check if there is no existing path with the same start and end points
-				if (!folds.some(fold => {
-					const fs0 = fold.segments[0].point;
-					const fs1 = fold.segments[1].point;
-				
-					return (fs0.equals(crv.point1) || fs0.equals(crv.point2)) && (fs1.equals(crv.point1) || fs1.equals(crv.point2));
-				})) {
-					// Create a new path only if no matching path is found
-					const pp = new paper.Path({ segments: [crv.point1, crv.point2], strokeColor: 'orange', strokeWidth: 2, parent:res })
-					
-					folds.push(pp)
-		
-					// Check if path is in the middle of the shape of is it a boundary of a shape
-					const cl = pp.getLocationAt(pp.length / 2)
-					no = cl.normal
-					no.length = 0.01
-
-					if (!joined.contains(cl.point.add(no)) || !joined.contains(cl.point.subtract(no))) {
-						pp.remove()
-					}
-				}
-			})
-		})
-
-		// console.log(res)
-		paths.forEach(it => it.remove())
-		return res
-		
-	},
 
 	compass: (points, rad) => {
 		let res = new paper.Group()
@@ -1966,6 +1923,62 @@ let utl = {
 		res[0].handleIn = ss.yHandles[1].clone()
 					
 		return res
-	}
+	},
+
+	                                                                     
+// 88888888888           88           88  88                            
+// 88                    88           88  ""                            
+// 88                    88           88                                
+// 88aaaaa   ,adPPYba,   88   ,adPPYb,88  88  8b,dPPYba,    ,adPPYb,d8  
+// 88"""""  a8"     "8a  88  a8"    `Y88  88  88P'   `"8a  a8"    `Y88  
+// 88       8b       d8  88  8b       88  88  88       88  8b       88  
+// 88       "8a,   ,a8"  88  "8a,   ,d88  88  88       88  "8a,   ,d88  
+// 88        `"YbbdP"'   88   `"8bbdP"Y8  88  88       88   `"YbbdP"Y8  
+//                                                          aa,    ,88  
+//                                                           "Y8bbdP"   
+	getCutAndScore: (paths) => {
+		res = new paper.Group()
+
+		// Unite all paths in the paths array
+		var join = paths.reduce(function (result, item, counter) {
+			return result.unite(item, {insert:false});
+		});
+		
+		joined = new paper.Path({segments: join.segments,strokeColor:'black', strokeWidth:1, closed:true, parent: res})
+				
+		folds = []
+		
+		paths.forEach(it => {
+			it.curves.forEach(crv => {
+				
+				// Check if there is no existing path with the same start and end points
+				if (!folds.some(fold => {
+					const fs0 = fold.segments[0].point;
+					const fs1 = fold.segments[1].point;
+				
+					return (fs0.equals(crv.point1) || fs0.equals(crv.point2)) && (fs1.equals(crv.point1) || fs1.equals(crv.point2));
+				})) {
+					// Create a new path only if no matching path is found
+					const pp = new paper.Path({ segments: [crv.point1, crv.point2], strokeColor: 'orange', strokeWidth: 2, parent:res })
+					
+					folds.push(pp)
+		
+					// Check if path is in the middle of the shape of is it a boundary of a shape
+					const cl = pp.getLocationAt(pp.length / 2)
+					no = cl.normal
+					no.length = 0.01
+
+					if (!joined.contains(cl.point.add(no)) || !joined.contains(cl.point.subtract(no))) {
+						pp.remove()
+					}
+				}
+			})
+		})
+
+		// console.log(res)
+		paths.forEach(it => it.remove())
+		return res
+		
+	},
 
 };
