@@ -69,19 +69,18 @@ let utl = {
 	},
 
 	weightedR: (items, weights) => {
-		var i;
+		var totalWeight = weights.reduce((a, b) => a + b, 0);
+		var random = Math.random() * totalWeight;
 	
-		for (i = 1; i < weights.length; i++)
-			weights[i] += weights[i - 1];
-		
-		var random = Math.random() * weights[weights.length - 1];
-		
-		for (i = 0; i < weights.length; i++)
-			if (weights[i] > random)
-				break;
-		
-		return items[i];
+		var weightSum = 0;
+		for (var i = 0; i < weights.length; i++) {
+			weightSum += weights[i];
+			if (random < weightSum) {
+				return items[i];
+			}
+		}
 	},
+	
 
 	getV: (array, value) => {
 		const index = Math.round(value * (array.length - 1));
@@ -1761,5 +1760,212 @@ let utl = {
 
 		return item
 	},
+
+
+                                            
+//   ,ad8888ba,               88           88  
+//  d8"'    `"8b              ""           88  
+// d8'                                     88  
+// 88             8b,dPPYba,  88   ,adPPYb,88  
+// 88      88888  88P'   "Y8  88  a8"    `Y88  
+// Y8,        88  88          88  8b       88  
+//  Y8a.    .a88  88          88  "8a,   ,d88  
+//   `"Y88888P"   88          88   `"8bbdP"Y8  
+
+	//There should be equal number of pieces and weights
+	unevenGrid: (gDim ={x:10,y:10}, gSize=20, pieces=[{x:1,y:1},{x:1,y:2},{x:2,y:1},{x:2,y:2}], weights=[10,5,5,5], xDistortF, yDistortF) => {
+		
+		return utl.genPieces(gDim, utl.genGridPoints(gDim, gSize, xDistortF, yDistortF), pieces, weights)
+
+	},
+
+	genGridPoints: (gDim,gSize,xDistortF,yDistortF) => {
+		
+		let gPoints = []
+
+		gPoints = new Array((gDim.x + 1) * (gDim.y + 1)).fill().map((_, index) => {
+			let x = index % (gDim.x + 1);
+			let y = Math.floor(index / (gDim.x + 1));
+					
+			let xDistort = xDistortF ? x * gSize + xDistortF(y) : x * gSize
+			let yDistort = yDistortF ? y * gSize + yDistortF(x) : y * gSize
+
+			return { segment: new paper.Segment({point: new paper.Point(xDistort, yDistort)}) }
+		});
+		
+		xLines = []
+		for(let y=0;y<gDim.y+1;y++) {
+			li = new paper.Path()
+			for(let x=0;x<gDim.x+1;x++) {
+				pos = y * (gDim.x + 1) + x
+				li.add(gPoints[pos].segment.clone())
+			}
+			li.smooth()
+				
+			for(let x=0;x<gDim.x+1;x++) {
+				pos = y * (gDim.x + 1) + x
+				gPoints[pos].xHandles = [li.segments[x].handleIn, li.segments[x].handleOut] 
+			}
+
+			li.remove()
+		}
+		
+		yLines = []
+		for(let x=0;x<gDim.x+1;x++) {
+			li = new paper.Path()
+			for(let y=0;y<gDim.y+1;y++) {
+				pos = y * (gDim.x + 1) + x;
+				li.add(gPoints[pos].segment.clone())
+			}
+			li.smooth()
+			
+			for(let y=0;y<gDim.y+1;y++) {
+				pos = y * (gDim.x + 1) + x;
+				gPoints[pos].yHandles = [li.segments[y].handleIn, li.segments[y].handleOut] 
+			}
+			li.remove()
+		}
+
+		return gPoints
+	},
+
+	genPieces: (gDim, gPoints, pieces, weights) => {
+		
+		gCells = []
+
+		const getGPos = (ind) => { return {x:ind%gDim.x, y:Math.floor(ind/gDim.y)} }
+		const getAvailability = (ind, piece) => {
+			// Boundary checks
+			if (ind % gDim.x + piece.x > gDim.x || Math.floor(ind / gDim.x) + piece.y > gDim.y) return false;			
+		
+			// Overlap checks
+			for (let y = 0; y < piece.y; y++) {
+				for (let x = 0; x < piece.x; x++) {
+					if (gBase[ind + y * gDim.x + x] === true) return false;					
+				}
+			}
+		
+			return true;
+		}
+		function P(ind, x, y) {
+			let pos = getGPos(ind)
+			
+			this.x = x
+			this.y = y
+			
+		
+			this.segments = utl.getCellPoints(gPoints,ind,x,y,gDim)
+			
+			this.path = new paper.Path({
+				segments: this.segments,
+				strokeColor: 'black',
+				strokeWidth: 1,
+				closed: true,
+			})
+			this.point = this.segments[0].point
+			this.width = this.path.bounds.width
+			this.height = this.path.bounds.height
+			
+			for (y = 0; y < this.y; y++) {
+				for (i = ind + (y * gDim.x); i < ind + (y * gDim.x) + this.x; i++) {
+					let mypos = getGPos(i)
+					if (mypos.y == pos.y + y) gBase[i] = true
+					else gBase[i + gDim.x] = true
+				}
+			}
+		}
+
+		gBase = Array(gDim.x * gDim.y).fill(false);
+
+		gBase.forEach((g, ind) => {
+			
+			if (g === true) return
+			
+			let myPos = getGPos(ind);
+			let it = 0;
+			let maxX = 10000;
+			let myYRowEnd = (myPos.y * gDim.y) + gDim.y;
+			let Rp;
+			let maxY = 10000;
+			let available = false;
+			
+			while ((maxX > myYRowEnd || maxY > gDim.y) && !available) {
+				
+				Rp = utl.weightedR(pieces, weights);
+				available = getAvailability(ind, Rp);
+				
+				// If not available, skip the rest of the loop and try with another piece
+				if (!available) {
+					if (it > 100) break;
+					it++;
+					continue;
+				}
+				
+				maxX = ind + Rp.x;
+				maxY = myPos.y + Rp.y;
+				
+				if (it > 100) break;
+				it++;
+			}
+			
+			// Add to gCells only if available
+			if (available) {
+				gCells.push(new P(ind, Rp.x, Rp.y));
+			}
+		})
+
+		return gCells
+	},
+
+	getCellPoints: (gPoints, ind, x, y, gDim) => {
+		let res = []
+		ind = Math.floor(ind/gDim.x) * (gDim.x + 1) + ind%gDim.x
+		
+		for (let xi = 0; xi < x+1; xi++) {
+			let ss = gPoints[ind + xi]
+			let myS = ss.segment.clone()
+			
+			if (xi != 0) myS.handleIn = ss.xHandles[0].clone()
+			if (xi != x)  myS.handleOut = ss.xHandles[1].clone()
+			if (xi == x)  myS.handleOut = ss.yHandles[1].clone()
+			res.push(myS)
+		}
+	
+		// Right edge (top to bottom, excluding the top corner)
+		for (let yi = 1; yi < y+1; yi++) {
+			let ss = gPoints[ind + yi*(gDim.x + 1) + x]
+			let myS = ss.segment.clone()
+			myS.handleIn = ss.yHandles[0].clone()
+			if (yi != y) myS.handleOut = ss.yHandles[1].clone()
+			if (yi == y) myS.handleOut = ss.xHandles[0].clone()
+			res.push(myS)
+		}
+	
+		// Bottom edge (right to left, excluding the right corner)
+		for (let xi = x-1; xi > -1; xi--) {
+			let ss = gPoints[ind + y*(gDim.x + 1) + xi]
+			let myS = ss.segment.clone()
+			if (xi != x) myS.handleIn = ss.xHandles[1].clone()
+			if (xi != 0) myS.handleOut = ss.xHandles[0].clone()
+			if (xi == 0) myS.handleOut = ss.yHandles[0].clone()
+			res.push(myS)
+			
+		}
+	
+		 // Left edge (bottom to top, excluding the bottom and top corners)
+		for (let yi = y - 1; yi > 0; yi--) {
+			let ss = gPoints[ind + yi * (gDim.x + 1)];
+			let myS = ss.segment.clone();
+			myS.handleIn = ss.yHandles[1].clone();
+			myS.handleOut = ss.yHandles[0].clone();
+			res.push(myS);
+		}
+		
+		let ss = gPoints[ind]
+		// let myS = ss.segment.clone()
+		res[0].handleIn = ss.yHandles[1].clone()
+					
+		return res
+	}
 
 };
