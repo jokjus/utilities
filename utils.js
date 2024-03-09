@@ -1,10 +1,20 @@
 // Utility functions for paper.js generative art
 paper = paper && Object.prototype.hasOwnProperty.call(paper, 'default') ? paper['default'] : paper;
 
-let utl = {
-	C: (p,r,c) => new paper.Path.Circle({center: p, radius: r, fillColor: c }),
+let utl = {	
+	
+	
+	// 88b           d88                       88           
+	// 888b         d888                ,d     88           
+	// 88`8b       d8'88                88     88           
+	// 88 `8b     d8' 88  ,adPPYYba,  MM88MMM  88,dPPYba,   
+	// 88  `8b   d8'  88  ""     `Y8    88     88P'    "8a  
+	// 88   `8b d8'   88  ,adPPPPP88    88     88       88  
+	// 88    `888'    88  88,    ,88    88,    88       88  
+	// 88     `8'     88  `"8bbdP"Y8    "Y888  88       88  
+	
 	R: (a) => Math.random() * a,
-    // Mathematical helpers -----------------------------------------
+                                                     
     isEven: (n) => {
         return n % 2 === 0;
     },
@@ -29,20 +39,48 @@ let utl = {
     sinBetween: (min, max, t) => {
         return ((max - min) * Math.sin(t) + max + min) / 2;
     },
+	
+	
+	//        db                                                          
+	//       d88b                                                         
+	//      d8'`8b                                                        
+	//     d8'  `8b      8b,dPPYba,  8b,dPPYba,  ,adPPYYba,  8b       d8  
+	//    d8YaaaaY8b     88P'   "Y8  88P'   "Y8  ""     `Y8  `8b     d8'  
+	//   d8""""""""8b    88          88          ,adPPPPP88   `8b   d8'   
+	//  d8'        `8b   88          88          88,    ,88    `8b,d8'    
+	// d8'          `8b  88          88          `"8bbdP"Y8      Y88'     
+	//                                                           d8'      
+	//                                                          d8'       
     // Get an array of random numbers sorted in order
+
     pick: (n, min, max) => {
-        var results = [];
+		var results = [];
         for (let i = 1; i <= n; i++) {
-            var value = Math.floor(Math.random() * max + min);
+			var value = Math.floor(Math.random() * max + min);
             results.push(value);
         }
         return results.sort((a, b) => a - b);
     },
-
+	
 	// get random item from an array
 	getR: (arr) => {
 		const randomIndex = Math.floor(Math.random() * arr.length);
 		return arr[randomIndex];
+	},
+
+	weightedR: (items, weights) => {
+		var i;
+	
+		for (i = 1; i < weights.length; i++)
+			weights[i] += weights[i - 1];
+		
+		var random = Math.random() * weights[weights.length - 1];
+		
+		for (i = 0; i < weights.length; i++)
+			if (weights[i] > random)
+				break;
+		
+		return items[i];
 	},
 
 	getV: (array, value) => {
@@ -51,7 +89,17 @@ let utl = {
 		return array[safeIndex];
 	},
 
-    // Vector drawing calculations -----------------------------------------
+                                                                                      
+// 8b           d8                                                                   
+// `8b         d8'                         ,d                                        
+//  `8b       d8'                          88                                        
+//   `8b     d8'  ,adPPYba,   ,adPPYba,  MM88MMM  ,adPPYba,   8b,dPPYba,  ,adPPYba,  
+//    `8b   d8'  a8P_____88  a8"     ""    88    a8"     "8a  88P'   "Y8  I8[    ""  
+//     `8b d8'   8PP"""""""  8b            88    8b       d8  88           `"Y8ba,   
+//      `888'    "8b,   ,aa  "8a,   ,aa    88,   "8a,   ,a8"  88          aa    ]8I  
+//       `8'      `"Ybbd8"'   `"Ybbd8"'    "Y888  `"YbbdP"'   88          `"YbbdP"'  
+                                                                                  
+                                                                                  
     between: (p1, p2, r = 0.5) => {
         var tmpLine = new paper.Path.Line({
             from: p1,
@@ -94,6 +142,17 @@ let utl = {
         return se;
     },
 
+	                                                             
+// 88888888ba               88                                  
+// 88      "8b              ""                ,d                
+// 88      ,8P                                88                
+// 88aaaaaa8P'  ,adPPYba,   88  8b,dPPYba,  MM88MMM  ,adPPYba,  
+// 88""""""'   a8"     "8a  88  88P'   `"8a   88     I8[    ""  
+// 88          8b       d8  88  88       88   88      `"Y8ba,   
+// 88          "8a,   ,a8"  88  88       88   88,    aa    ]8I  
+// 88           `"YbbdP"'   88  88       88   "Y888  `"YbbdP"'  
+                                                             
+                                                             
 	genPointsEased: (center, maxDistance, count) => {
 		const points = [];
 	
@@ -121,6 +180,47 @@ let utl = {
 		const points = pds.getPoints().map(([x, y]) => new Point(center.x + x, center.y + y));
 		return points;
 	},
+
+	addPointToCurve: (path, offset) => {
+        var p = path.getPointAt(offset);
+        path.splitAt(path.getLocationAt(offset));
+        path.join(path);
+
+        if (path.getLocationOf(p) != undefined) {
+            var result = path.getLocationOf(p).segment;
+            return result;
+        } else {
+            return undefined;
+        }
+    },
+
+	isPointOnLine: (point, lineStart, lineEnd) => {
+		// Vector from lineStart to lineEnd
+		var lineVector = lineEnd.subtract(lineStart);
+		
+		// Vector from lineStart to the point
+		var pointVector = point.subtract(lineStart);
+	
+		// Check if the vectors are collinear by cross product
+		var isCollinear = lineVector.cross(pointVector) === 0;
+	
+		// Check if the point is within the bounds of the segment
+		var isWithinBounds = pointVector.dot(lineVector) >= 0 && pointVector.dot(lineVector) <= lineVector.dot(lineVector);
+	
+		return isCollinear && isWithinBounds;
+	},
+          
+	
+// 88b           d88                                        88                            
+// 888b         d888                                        ""                            
+// 88`8b       d8'88                                                                      
+// 88 `8b     d8' 88  ,adPPYYba,  8b,dPPYba,   8b,dPPYba,   88  8b,dPPYba,    ,adPPYb,d8  
+// 88  `8b   d8'  88  ""     `Y8  88P'    "8a  88P'    "8a  88  88P'   `"8a  a8"    `Y88  
+// 88   `8b d8'   88  ,adPPPPP88  88       d8  88       d8  88  88       88  8b       88  
+// 88    `888'    88  88,    ,88  88b,   ,a8"  88b,   ,a8"  88  88       88  "8a,   ,d88  
+// 88     `8'     88  `"8bbdP"Y8  88`YbbdP"'   88`YbbdP"'   88  88       88   `"YbbdP"Y8  
+//                                88           88                             aa,    ,88  
+//                                88           88                              "Y8bbdP"   
 
 	mapArt: (from, to, pad) => {
         ref = new paper.Rectangle(from.bounds);
@@ -270,30 +370,19 @@ let utl = {
 		return result
 	},
 
-	convertShapesToPaths: (item) => {
 
-		// Convert paths that are shapes and cause problems
-		if (item.hasChildren()) {
-
-			toremove = []
-			item.children.forEach(pa => {
-				if (pa instanceof paper.Shape) {
-					pa.toPath()
-					toremove.push(pa)
-				}
-			})
-		
-			toremove.forEach(re => {
-				re.remove()
-			})
-		}
-		else  {
-			item.toPath()
-		}
-
-		return item
-	},
 	
+	                                                                                                  
+//   ,ad8888ba,                            88                          88                            
+//  d8"'    `"8b                           88                          ""                            
+// d8'        `8b                          88                                                        
+// 88          88   ,adPPYba,   ,adPPYba,  88  88       88  ,adPPYba,  88   ,adPPYba,   8b,dPPYba,   
+// 88          88  a8"     ""  a8"     ""  88  88       88  I8[    ""  88  a8"     "8a  88P'   `"8a  
+// Y8,        ,8P  8b          8b          88  88       88   `"Y8ba,   88  8b       d8  88       88  
+//  Y8a.    .a8P   "8a,   ,aa  "8a,   ,aa  88  "8a,   ,a88  aa    ]8I  88  "8a,   ,a8"  88       88  
+//   `"Y8888Y"'     `"Ybbd8"'   `"Ybbd8"'  88   `"YbbdP'Y8  `"YbbdP"'  88   `"YbbdP"'   88       88  
+                                                                                                  
+                                                                                                  
 
 	occlusionX: (item, cookie=false, origColors=false, smallLines=0.1, verbose=true) => {
 		utl.ungroup(item)
@@ -834,6 +923,17 @@ let utl = {
 
 	},
 
+                                                           
+// 88        88                                  88           
+// 88        88                ,d                88           
+// 88        88                88                88           
+// 88aaaaaaaa88  ,adPPYYba,  MM88MMM  ,adPPYba,  88,dPPYba,   
+// 88""""""""88  ""     `Y8    88    a8"     ""  88P'    "8a  
+// 88        88  ,adPPPPP88    88    8b          88       88  
+// 88        88  88,    ,88    88,   "8a,   ,aa  88       88  
+// 88        88  `"8bbdP"Y8    "Y888  `"Ybbd8"'  88       88  
+                                                           
+                                                           
 	// Hatch fill simple shapes (renctangle, circle etc. No U-shapes)
 	hatchFill: (path, off, angle, penW, color) => {
 
@@ -931,14 +1031,12 @@ let utl = {
 	},
 
 	// Hatch fill any shape
-	hatchFillAny: (origpath, penW, angle, color, debug=false, deleteOriginal=false) => {
+	hatchFillAny: (origpath, penW, angle, color, debug=false, crossHatch=false) => {
 		
+		if (origpath == null || origpath.area < 1) return 
+
 		let commonPivot = new paper.Point(0,0)
-		penW = penW * 2.83465 // convert pen width from mm to points
-
-		penW = penW * 2.83465 // convert pen width from mm to points
-
-		
+		penW = penW * 2.83465 // convert pen width from mm to points		
 		
 		let origColor = origpath.fillColor ? origpath.fillColor : 'black'
 		if (color) origColor = color
@@ -948,194 +1046,193 @@ let utl = {
 		path = PaperOffset.offset(origpath, -penW)
 		pathCopy2 = PaperOffset.offset(origpath, -.5 * penW)
 
-
 		path.pivot = commonPivot
-		path.rotate(angle)
-
-		indentedOutline = PaperOffset.offset(origpath, -.5 * penW)
 		
-	
-
-		// get dimensions
-		var pb = path.bounds;
-
-		let di = pb.topLeft.getDistance(pb.bottomRight)
-				
-		// set offset
-		let offset = (di - pb.width) / 2
-
-		// calculate how much lines fit onto the path with density given as parametre
-		var linesCount = (Math.max(pb.width, pb.height) + 2 * offset) /  penW
 		
-		// Create dummy compound path to accommodate individual lines
-		var lines = new paper.Group({pivot: commonPivot});
-	
-		
-		// Let's add all separate point/line groups into this variable
-		var runList = [[]];
-		// Indicates index of runList lists.
-		var curList = 0;
-		// Current number of points in a line
-		var curCount = 1;
-	
-		let prevInts
+		hatch(angle)
+		if (crossHatch) hatch(angle-90)
 
-		
-		for (var l = 0; l < linesCount; l++) {
-			// The horizontal position of a hatch line
-			var x = pb.left - offset + l * penW;
+		function hatch(myAngle) {
+			hatchG = new paper.Group({pivot: commonPivot})
+			path.rotate(myAngle)
 
-			// Create reference line in order to get intersection points
-			var refline = new paper.Path.Line({
-				from: new paper.Point(x, pb.top - offset),
-				to: new paper.Point(x, pb.bottom + offset)
-			})
+			// get dimensions
+			var pb = path.bounds;
 	
-			// Rotate for diagonal hatching based on given parameter	
-			// refline.rotate(angle);
+			let di = pb.topLeft.getDistance(pb.bottomRight)
+					
+			// set offset
+			let offset = (di - pb.width) / 2
 	
-			// Get intersection points
-			var ints = path.getIntersections(refline);
-	
-			// Sort intersections along the reference line
-			ints.sort(function(a, b) {
-				return refline.getOffsetOf(a.point) - refline.getOffsetOf(b.point);
-			  });
-	
-			// if (ints.length == 1) console.log('ohilyönti')
-	
-			// The number of actual line segments
-			var myLineCount = ints.length / 2;
+			// calculate how much lines fit onto the path with density given as parametre
+			var linesCount = (Math.max(pb.width, pb.height) + 2 * offset) /  penW
 			
+			// Create dummy compound path to accommodate individual lines
+			var lines = new paper.Group({pivot: commonPivot});
+					
+			// Let's add all separate point/line groups into this variable
+			var runList = [[]];
+			// Indicates index of runList lists.
+			var curList = 0;
+			// Current number of points in a line
+			var curCount = 1;
+		
+			let prevInts
 			
-			if (isEven(ints.length) && ints.length > 1) {
+			for (var l = 0; l < linesCount; l++) {
+				// The horizontal position of a hatch line
+				var x = pb.left - offset + l * penW;
 	
-				isclose = true			
-				// Check if this and previous refline intersections are next to each other in the path
+				// Create reference line in order to get intersection points
+				var refline = new paper.Path.Line({
+					from: new paper.Point(x, pb.top - offset),
+					to: new paper.Point(x, pb.bottom + offset)
+				})
+		
+				// Get intersection points
+				var ints = path.getIntersections(refline);
+		
+				// Sort intersections along the reference line
+				ints.sort(function(a, b) {
+					return refline.getOffsetOf(a.point) - refline.getOffsetOf(b.point);
+				  });
+		
+				// The number of actual line segments
+				var myLineCount = ints.length / 2;
 				
-				// BUG In tight corners there are too many false positives
-				// if (prevInts != undefined && prevInts.length > 1 && prevInts.length == ints.length)  {
-				if (prevInts != undefined && prevInts.length > 1) {
-	
-					ints.every((inter, index) => {
-						
-						if (index > prevInts.length - 1) return false
-	
-						// Put this line's and previous lines CurveLocation into an sorted array
-						offs = [prevInts[index].offset, inter.offset].sort()
-	
-						// Check if any of active line's intersection points is between the points
-						ints.every(int => {						
-							if (isBetween(int.offset, offs)) {
-								if (debug) {
-									new paper.Path.Circle({center: prevInts[index].point, radius: 2, fillColor: 'red'})
-									new paper.Path.Circle({center: inter.point, radius: 2, fillColor: 'black'})
-									new paper.Path.Circle({center: int.point, radius: 2, fillColor: 'green'})
-									new paper.PointText({
-										point: int.point,
-										content: int.offset.toFixed(2),
-										fontSize: 5
-									})
-									new paper.PointText({
-										point: inter.point,
-										content:inter.offset.toFixed(2),
-										fontSize: 5
-									})
-									new paper.PointText({
-										point: prevInts[index].point,
-										content: prevInts[index].offset.toFixed(2),
-										fontSize: 5
-									})
-									console.log(prevInts[index].offset + ' ' + int.offset + ' ' + inter.offset)
+				
+				if (isEven(ints.length) && ints.length > 1) {
+		
+					isclose = true			
+					// Check if this and previous refline intersections are next to each other in the path
+					
+					// BUG In tight corners there are too many false positives
+					// if (prevInts != undefined && prevInts.length > 1 && prevInts.length == ints.length)  {
+					if (prevInts != undefined && prevInts.length > 1) {
+		
+						ints.every((inter, index) => {
+							
+							if (index > prevInts.length - 1) return false
+		
+							// Put this line's and previous lines CurveLocation into an sorted array
+							offs = [prevInts[index].offset, inter.offset].sort()
+		
+							// Check if any of active line's intersection points is between the points
+							ints.every(int => {						
+								if (isBetween(int.offset, offs)) {
+									if (debug) {
+										new paper.Path.Circle({center: prevInts[index].point, radius: 2, fillColor: 'red'})
+										new paper.Path.Circle({center: inter.point, radius: 2, fillColor: 'black'})
+										new paper.Path.Circle({center: int.point, radius: 2, fillColor: 'green'})
+										new paper.PointText({
+											point: int.point,
+											content: int.offset.toFixed(2),
+											fontSize: 5
+										})
+										new paper.PointText({
+											point: inter.point,
+											content:inter.offset.toFixed(2),
+											fontSize: 5
+										})
+										new paper.PointText({
+											point: prevInts[index].point,
+											content: prevInts[index].offset.toFixed(2),
+											fontSize: 5
+										})
+										console.log(prevInts[index].offset + ' ' + int.offset + ' ' + inter.offset)
+									}
+		
+									isclose = false
+									return false;
 								}
-	
-								isclose = false
-								return false;
-							}
-						  
-							return true;
-						  })
-	
-						  if (!isclose) return false
-	
-						  return true
-					})
-	
-					function isBetween(number, twoNumbersArray) {
-						return number > twoNumbersArray[0] && number < twoNumbersArray[1];
+							  
+								return true;
+							  })
+		
+							  if (!isclose) return false
+		
+							  return true
+						})
+		
+						function isBetween(number, twoNumbersArray) {
+							return number > twoNumbersArray[0] && number < twoNumbersArray[1];
+						}
+					}
+		
+					// If number of points aka number of individual lines are not identical, divide runlist into separate groups
+					if (myLineCount != curCount || !isclose) {
+					// if (!isclose) {
+						// set index of current list to first of the new groups about to be created
+						curList = runList.length;
+						curCount = myLineCount;
+						// Create a new group per each line segment within one hatch line 
+						for (var g = 0; g < myLineCount; g++) {
+							runList.push([]);
+						}
+					}
+					
+					// Loop through each line segment and add two points to corresponding group in runlist
+					for (var a = 0; a < myLineCount; a++) {
+						var activeList = runList[curList + a];
+						activeList.push([ints[a * 2].point, ints[a * 2 + 1].point])
 					}
 				}
-	
-				// If number of points aka number of individual lines are not identical, divide runlist into separate groups
-				if (myLineCount != curCount || !isclose) {
-				// if (!isclose) {
-					// set index of current list to first of the new groups about to be created
-					curList = runList.length;
-					curCount = myLineCount;
-					// Create a new group per each line segment within one hatch line 
-					for (var g = 0; g < myLineCount; g++) {
-						runList.push([]);
-					}
-				}
-				
-				// Loop through each line segment and add two points to corresponding group in runlist
-				for (var a = 0; a < myLineCount; a++) {
-					var activeList = runList[curList + a];
-					activeList.push([ints[a * 2].point, ints[a * 2 + 1].point])
-				}
+				prevInts = [...ints]
+				refline.remove();
 			}
-			prevInts = [...ints]
-			refline.remove();
-		}
-	
-	
-		if (runList.length > 0) {
-			for (let i = runList.length - 1; i >= 0; i--) {
-				if (runList[i].length === 0) {
-					runList.splice(i, 1);
-				}
-			}
-		}
 		
 		
-		if (runList.length > 0) {
-	
-			oRunList = [...runList]
-	
-			if (oRunList.length == 0) console.log('Tyhjä runlista')
-	
-			// Create lines, go through all the groups created previously
-			for (var i = 0; i < oRunList.length; i++) {
-				var continuousLine = new paper.Path({strokeColor: path.strokeColor});
-				var myList = oRunList[i];
-	
-				if (myList.length == 0) console.log('Tyhjä myList')
-	
-				// Every other end connected to create zigzag pattern
-				for (var k = 0; k < myList.length; k++) {
-					if (isEven(k)) {
-						addToContinuousLine(0)
-						addToContinuousLine(1)
-					}
-					else {
-						addToContinuousLine(1)
-						addToContinuousLine(0)
+			if (runList.length > 0) {
+				for (let i = runList.length - 1; i >= 0; i--) {
+					if (runList[i].length === 0) {
+						runList.splice(i, 1);
 					}
 				}
-	
-				function addToContinuousLine(ind) {
-					continuousLine.add(myList[k][ind]);
-				}
-				
-				lines.addChild(continuousLine);
 			}
 			
-			// Put lines vector element into drawing in front of the texturized path
-			lines.parent = resG;
+			
+			if (runList.length > 0) {
+		
+				oRunList = [...runList]
+		
+				if (oRunList.length == 0) console.log('Tyhjä runlista')
+		
+				// Create lines, go through all the groups created previously
+				for (var i = 0; i < oRunList.length; i++) {
+					var continuousLine = new paper.Path({strokeColor: path.strokeColor});
+					var myList = oRunList[i];
+		
+					if (myList.length == 0) console.log('Tyhjä myList')
+		
+					// Every other end connected to create zigzag pattern
+					for (var k = 0; k < myList.length; k++) {
+						if (isEven(k)) {
+							addToContinuousLine(0)
+							addToContinuousLine(1)
+						}
+						else {
+							addToContinuousLine(1)
+							addToContinuousLine(0)
+						}
+					}
+		
+					function addToContinuousLine(ind) {
+						continuousLine.add(myList[k][ind]);
+					}
+					
+					lines.addChild(continuousLine);
+				}
+				
+				// Put lines vector element into drawing in front of the texturized path
+				lines.parent = hatchG;
+			}
+			hatchG.rotate(-myAngle)
+			hatchG.parent = resG
+			path.rotate(-myAngle)
 		}
-		resG.rotate(-angle)
-		indentedOutline.parent = resG
 
+		path.parent = resG
+		
 		pathCopy2.parent = resG
 		pathCopy2.strokeColor = color
 		pathCopy2.strokeWidth = penW
@@ -1147,8 +1244,7 @@ let utl = {
 		resG.strokeCap = 'round'
 		resG.strokeJoin = 'round'
 
-		
-		path.remove()
+		// path.remove()
 
 		return resG
 
@@ -1162,7 +1258,17 @@ let utl = {
 		 }
 	},
 
-    // Color  -----------------------------------------
+                                                             
+//   ,ad8888ba,                88                           
+//  d8"'    `"8b               88                           
+// d8'                         88                           
+// 88              ,adPPYba,   88   ,adPPYba,   8b,dPPYba,  
+// 88             a8"     "8a  88  a8"     "8a  88P'   "Y8  
+// Y8,            8b       d8  88  8b       d8  88          
+//  Y8a.    .a8P  "8a,   ,a8"  88  "8a,   ,a8"  88          
+//   `"Y8888Y"'    `"YbbdP"'   88   `"YbbdP"'   88          
+                                                         
+                                                         
     hex2color: (hex) => {
         var t = hex.match(/[A-Za-z0-9]{2}/g).map(function (v) {
             return parseInt(v, 16) / 255;
@@ -1198,7 +1304,18 @@ let utl = {
         return c;
     },
 
-    // String manipulation -------------------------------------------------
+
+                                                                  
+//  ad88888ba                      88                            
+// d8"     "8b  ,d                 ""                            
+// Y8,          88                                               
+// `Y8aaaaa,  MM88MMM  8b,dPPYba,  88  8b,dPPYba,    ,adPPYb,d8  
+//   `"""""8b,  88     88P'   "Y8  88  88P'   `"8a  a8"    `Y88  
+//         `8b  88     88          88  88       88  8b       88  
+// Y8a     a8P  88,    88          88  88       88  "8a,   ,d88  
+//  "Y88888P"   "Y888  88          88  88       88   `"YbbdP"Y8  
+//                                                   aa,    ,88  
+//                                                    "Y8bbdP"   
     pad: (num, size) => {
         num = num.toString();
         while (num.length < size) num = '0' + num;
@@ -1209,7 +1326,18 @@ let utl = {
 		return /^[A-Z]$/.test(char);
 	},
 
-    // Animation related functions -----------------------------------------
+
+	// 88888888888                         88                            
+	// 88                                  ""                            
+	// 88                                                                
+	// 88aaaaa      ,adPPYYba,  ,adPPYba,  88  8b,dPPYba,    ,adPPYb,d8  
+	// 88"""""      ""     `Y8  I8[    ""  88  88P'   `"8a  a8"    `Y88  
+	// 88           ,adPPPPP88   `"Y8ba,   88  88       88  8b       88  
+	// 88           88,    ,88  aa    ]8I  88  88       88  "8a,   ,d88  
+	// 88888888888  `"8bbdP"Y8  `"YbbdP"'  88  88       88   `"YbbdP"Y8  
+	//                                                       aa,    ,88  
+	//                                                        "Y8bbdP"   
+
     easingAnims: (min, max, easing, phase) => {
         phase = animFrame / (document.getElementById('animSpeed').value * 10);
         var animValue = eval('utl.' + easing + '(phase)');
@@ -1222,8 +1350,6 @@ let utl = {
         }
         return parseInt(min) + parseFloat(animValue * range);
     },
-
-    // Easing functions -----------------------------------------
     sine: (x) => {
         return Math.sin(x);
     },
@@ -1299,20 +1425,21 @@ let utl = {
         return -(Math.cos(Math.PI * x) - 1) / 2;
     },
 
-    addPointToCurve: (path, offset) => {
-        var p = path.getPointAt(offset);
-        path.splitAt(path.getLocationAt(offset));
-        path.join(path);
 
-        if (path.getLocationOf(p) != undefined) {
-            var result = path.getLocationOf(p).segment;
-            return result;
-        } else {
-            return undefined;
-        }
-    },
-
-	// DRAWING PRIMITIVES
+	                                                                                                                 
+                                                                                                      
+// 88888888ba               88                      88           88                                      
+// 88      "8b              ""                      ""    ,d     ""                                      
+// 88      ,8P                                            88                                             
+// 88aaaaaa8P'  8b,dPPYba,  88  88,dPYba,,adPYba,   88  MM88MMM  88  8b       d8   ,adPPYba,  ,adPPYba,  
+// 88""""""'    88P'   "Y8  88  88P'   "88"    "8a  88    88     88  `8b     d8'  a8P_____88  I8[    ""  
+// 88           88          88  88      88      88  88    88     88   `8b   d8'   8PP"""""""   `"Y8ba,   
+// 88           88          88  88      88      88  88    88,    88    `8b,d8'    "8b,   ,aa  aa    ]8I  
+// 88           88          88  88      88      88  88    "Y888  88      "8"       `"Ybbd8"'  `"YbbdP"'  
+                                                                                                      
+                                                                                                      
+                                                                                                                 
+	C: (p,r,c) => new paper.Path.Circle({center: p, radius: r, fillColor: c }),
 	mark: (inR, outR, color, strokeWidth, pnt) => {
 		let ci = new paper.Path.Circle({
 			strokeWidth: strokeWidth,
@@ -1542,24 +1669,20 @@ let utl = {
 		return res;
 	},
 	
-	
-	isPointOnLine: (point, lineStart, lineEnd) => {
-		// Vector from lineStart to lineEnd
-		var lineVector = lineEnd.subtract(lineStart);
-		
-		// Vector from lineStart to the point
-		var pointVector = point.subtract(lineStart);
-	
-		// Check if the vectors are collinear by cross product
-		var isCollinear = lineVector.cross(pointVector) === 0;
-	
-		// Check if the point is within the bounds of the segment
-		var isWithinBounds = pointVector.dot(lineVector) >= 0 && pointVector.dot(lineVector) <= lineVector.dot(lineVector);
-	
-		return isCollinear && isWithinBounds;
-	},
 
 
+
+	                                               
+// 88888888ba                        88           
+// 88      "8b                ,d     88           
+// 88      ,8P                88     88           
+// 88aaaaaa8P'  ,adPPYYba,  MM88MMM  88,dPPYba,   
+// 88""""""'    ""     `Y8    88     88P'    "8a  
+// 88           ,adPPPPP88    88     88       88  
+// 88           88,    ,88    88,    88       88  
+// 88           `"8bbdP"Y8    "Y888  88       88  
+                                               
+                                               
 	simplifyPath: function(path, tolerance) {
 		// Helper function to simplify a section of the path
 		const simplifySection = (start, end) => {
@@ -1613,8 +1736,30 @@ let utl = {
 	
 		// Return the original path with its segments replaced
 		return path;
-	}
+	},
 	
-	
+	convertShapesToPaths: (item) => {
+
+		// Convert paths that are shapes and cause problems
+		if (item.hasChildren()) {
+
+			toremove = []
+			item.children.forEach(pa => {
+				if (pa instanceof paper.Shape) {
+					pa.toPath()
+					toremove.push(pa)
+				}
+			})
+		
+			toremove.forEach(re => {
+				re.remove()
+			})
+		}
+		else  {
+			item.toPath()
+		}
+
+		return item
+	},
 
 };
