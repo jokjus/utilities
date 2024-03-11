@@ -1754,6 +1754,27 @@ let utl = {
 		return item
 	},
 
+	matchToPoints: (p, p1, p2) => {
+		// Calculate scale
+		sc = p1.getDistance(p2) / p.bounds.width
+		
+		// Calculate angle for rotation
+		aorig = p.firstSegment.point.subtract(p.lastSegment.point).angle
+		atgt = p1.subtract(p2).angle
+		a = atgt - aorig
+		
+		// Set pivot and apply transformations
+		p.pivot = p.firstSegment.point
+		p.rotate(a)
+		p.scale(sc, sc)
+		p.position = p1
+		
+		//fix rare errors
+		p.lastSegment.point.x = p2.x
+		p.lastSegment.point.y = p2.y
+		
+	},
+
 
                                             
 //   ,ad8888ba,               88           88  
@@ -1770,9 +1791,9 @@ let utl = {
 	// const yDistortF = (x) => x * 10 * Math.sin(x)
 
 	//There should be equal number of pieces and weights
-	unevenGrid: (gDim ={x:10,y:10}, gSize=20, pieces=[{x:1,y:1},{x:1,y:2},{x:2,y:1},{x:2,y:2}], weights=[5,5,5,5], xDistortF, yDistortF) => {
+	unevenGrid: (gDim ={x:10,y:10}, gSize=20, pieces=[{x:1,y:1},{x:1,y:2},{x:2,y:1},{x:2,y:2}], weights=[5,5,5,5], xDistortF, yDistortF, mask) => {
 		
-		return utl.genPieces(gDim, utl.genGridPoints(gDim, gSize, xDistortF, yDistortF), pieces, weights)
+		return utl.genPieces(gDim, utl.genGridPoints(gDim, gSize, xDistortF, yDistortF), pieces, weights, mask)
 
 	},
 
@@ -1826,7 +1847,7 @@ let utl = {
 		return gPoints
 	},
 
-	genPieces: (gDim, gPoints, pieces, weights) => {
+	genPieces: (gDim, gPoints, pieces, weights, mask) => {
 		
 		let gCells = []
 
@@ -1910,6 +1931,37 @@ let utl = {
 				gCells.push(new P(ind, Rp.x, Rp.y));
 			}
 		})
+
+		if (mask) {
+
+			todel = []
+	
+			gCells.forEach(c => {
+				let out = true
+				c.segments.forEach(s => {
+					if (!mask.contains(s.point)) {
+						near = mask.getNearestPoint(s.point)
+						s.point.x = near.x
+						s.point.y = near.y
+						s.handleIn.length = 1
+						s.handleOut.length = 1
+					}
+					else {out=false}
+				})
+				if (out) todel.push(c)
+			})
+	
+			todel.forEach(i => {
+				let index = gCells.indexOf(i);
+	
+				if (index !== -1) {
+					gCells.splice(index, 1);
+				}
+				i.path.remove()
+			})
+	
+			mask.remove()
+		}
 
 		return gCells
 	},
