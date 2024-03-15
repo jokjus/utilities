@@ -1673,9 +1673,44 @@ let utl = {
 // 88           ,adPPPPP88    88     88       88  
 // 88           88,    ,88    88,    88       88  
 // 88           `"8bbdP"Y8    "Y888  88       88  
-                                               
-                                               
-	simplifyPath: function(path, tolerance) {
+	
+	// Requires fit-curve.js
+	// Converts a path into smooth bezier curves. Error controls the maximun deviation from the original path
+	toCurve: (path, error) => {
+
+		const path2arr = (path) => {res = path.segments.map(seg => [seg.point.x, seg.point.y]); res.push([path.firstSegment.point.x, path.firstSegment.point.y]); return res }
+		const po = ([x,y]) => new paper.Point(x, y)
+		const hndl = ([hx, hy], [px, py]) => new paper.Point(hx-px, hy-py)
+		const se = (point, handleIn, handleOut) => { 
+			let pnt = po(point)
+			hIn = handleIn ? hndl(handleIn, point) : null
+			hOut = handleOut ? hndl(handleOut, point) : null
+			return new paper.Segment({ point: pnt, handleIn: hIn, handleOut: hOut})
+		} 
+		
+		let points = path2arr(path)
+		var bz = fitCurve(points, error);
+
+		let pa = []
+
+		for (let i=0;i<bz.length;i++) {
+			cur =bz[i]		
+			
+			if (i==0) {		
+				pa.push( se(cur[0], null, cur[1]) )
+				pa.push( se(cur[3], cur[2], null) )
+			}
+			else {
+				pa[pa.length-1].handleOut = hndl(cur[1], cur[0])
+				pa.push( se(cur[3], cur[2], null) )
+			}	
+		}
+		
+		path.segments = pa		
+	},                                           
+	
+
+	simplifyPath: (path, tolerance) => {
 		// Helper function to simplify a section of the path
 		const simplifySection = (start, end) => {
 			if (end - start < 2) {
@@ -1775,6 +1810,16 @@ let utl = {
 		
 	},
 
+	// Resamples path 
+	resample: (path, count) => {
+        let segs = []    
+        let le = path.length
+        for(let i=0;i<count;i++) {
+            segs.push(new paper.Segment({point:path.getPointAt(le/count * i)}))
+        }
+        path.segments = segs
+    },
+
 
                                             
 //   ,ad8888ba,               88           88  
@@ -1805,8 +1850,8 @@ let utl = {
 			let x = index % (gDim.x + 1);
 			let y = Math.floor(index / (gDim.x + 1));
 					
-			let xDistort = xDistortF ? x * gSize + xDistortF(y) : x * gSize
-			let yDistort = yDistortF ? y * gSize + yDistortF(x) : y * gSize
+			let xDistort = xDistortF ? x * gSize + xDistortF(x,y) : x * gSize
+			let yDistort = yDistortF ? y * gSize + yDistortF(x,y) : y * gSize
 
 			return { segment: new paper.Segment({point: new paper.Point(xDistort, yDistort)}) }
 		});
@@ -2135,7 +2180,6 @@ let utl = {
 
 		return allPaths;
 	},
-
 
 	// Main drawing function
 	vecText: (text, project) => {
@@ -2533,7 +2577,268 @@ let utl = {
 		let mytext = utl.pathCommandsForText(hershey.futural, text);
 		mytext.forEach(p => p.parent = textG)
 		return textG		
-	}
+	},
                                                             
+
+
+
+
+                                                            
+// I8,        8        ,8I                                     
+// `8b       d8b       d8'                                     
+//  "8,     ,8"8,     ,8"                                      
+//   Y8     8P Y8     8P  ,adPPYYba,  8b,dPPYba,  8b,dPPYba,   
+//   `8b   d8' `8b   d8'  ""     `Y8  88P'   "Y8  88P'    "8a  
+//    `8a a8'   `8a a8'   ,adPPPPP88  88          88       d8  
+//     `8a8'     `8a8'    88,    ,88  88          88b,   ,a8"  
+//      `8'       `8'     `"8bbdP"Y8  88          88`YbbdP"'   
+//                                                88           
+//                                                88           
+
+	warp: (src, tgt, resolution) => {
+		pa = (segs) => new paper.Path({segments: segs})
+
+		utl.resample(tgt, 20)
+
+		let sides = utl.getAltSides(tgt)
+		let top = pa(sides.top)
+		let btm = pa(sides.btm)
+		let left = pa(sides.left)
+		let right = pa(sides.right)
+		
+		utl.resample(top, 100)
+		utl.resample(btm, 100)
+		btm.reverse()
+		left.reverse()
+		
+		bo = src.bounds
+		
+		if(src.hasChildren()) {
+			src.children.forEach(ch => processOne(ch))
+		}
+		else {
+			processOne(src)
+		}
+		
+		function processOne(item) {
+			let resCount = Math.floor(item.length/resolution)
+			
+			utl.resample(item,resCount)
+			
+			item.segments.forEach(s=> {
+				myX = (s.point.x - bo.left) / bo.width
+				myY = (s.point.y - bo.top) / bo.height
+				pp = utl.getP(top,btm,left,right, myX, myY, tgt)
+				s.point.x = pp.x
+				s.point.y = pp.y
+			})
+		}
+	},
+
+	getAltSides: (tgt) => {
+		tb = tgt.bounds
+	
+		ltP = tgt.getNearestLocation(tgt.bounds.topLeft)
+		rtP = tgt.getNearestLocation(tgt.bounds.topRight)
+	 
+		lt = tgt.divideAt(ltP)
+		if (lt==null) lt = tgt.getLocationOf(ltP.point).segment
+		rt = tgt.divideAt(rtP)
+		if (rt==null) rt = tgt.getLocationOf(rtP.point).segment
+		
+		let top = utl.segsBetween(tgt, lt, rt)
+	
+		blP = tgt.getNearestLocation(tgt.bounds.bottomLeft)
+		brP = tgt.getNearestLocation(tgt.bounds.bottomRight)
+		
+		bl = tgt.divideAt(blP)
+		if (bl==null) bl = tgt.getLocationOf(blP.point).segment
+		br = tgt.divideAt(brP)
+		if (br==null) br = tgt.getLocationOf(brP.point).segment
+	
+		let btm = utl.segsBetween(tgt, br, bl)
+		
+		let left = utl.segsBetween(tgt, bl, lt)
+		let right = utl.segsBetween(tgt, rt, br )
+	
+		utl.fixSide(top, right, true)
+		//fixSide(btm, left, false)
+				
+		return {top:top, btm:btm, left:left, right:right}
+		
+	},
+
+	fixSide: (segs1, segs2, alt, thresh=20) => {
+		
+		for (var i = segs1.length - 1; i > 0; i--) {
+			let seg = segs1[i];
+
+			// Calculate the direction vector from this segment to the next
+			let cur = seg.point
+			let prev = segs1[i-1]
+			
+			let prevP = prev.point
+			let dir = new paper.Point(cur.x - prevP.x , cur.y - prevP.y);
+
+			// Calculate the angle between the direction vector and the vertical axis
+			let angle = alt ? Math.abs(dir.angle-90) :  Math.abs(Math.abs(dir.angle-90)-180)
+			
+
+			// Check if the direction is nearly vertical and upwards
+			if (angle <= thresh) { // && dir.y < 0) {
+				segs2.unshift(seg)
+				segs2.unshift(prev)
+				
+				segs1.pop()
+			}
+			else { break }
+		}
+	}, 
+
+	segsBetween: (path, startSegment, endSegment) => {
+		// Ensure the segments are part of the path
+		// console.log(path, startSegment, endSegment)
+		if (!path.segments.includes(startSegment) || !path.segments.includes(endSegment)) {
+			console.error('Specified segments are not part of the path.');
+			return [];
+		}
+
+		// Get the indices of the start and end segments
+		let startIndex = startSegment.index;
+		let endIndex = endSegment.index;
+
+		// Handle wrapping around the start point
+		if (startIndex > endIndex) {
+			// Get segments from startIndex to the end of the path, and from the start of the path to endIndex
+			let segmentsToEnd = path.segments.slice(startIndex);
+			let segmentsFromStart = path.segments.slice(0, endIndex + 1);
+			return segmentsToEnd.concat(segmentsFromStart);
+		} else {
+			// If no wrapping is needed, simply slice the segments
+			return path.segments.slice(startIndex, endIndex);
+		}
+	}, 
+
+	getP: (t,b,l,r,x,y,path) => {
+
+		let res
+		y = y == 0 ? y = 0.001 : y
+		y = y == 1 ? y = 0.999 : y
+		
+		let inpol = new paper.Path()
+		inpol.interpolate(t,b,y) 
+		
+		//let xLi = new Path({strokeColor: 'blue'})
+		//xLi.interpolate(t,b,y) 
+		
+		if (!path.contains(inpol.firstSegment.point) || !path.contains(inpol.lastSegment.point)) {
+			xLi = inpol.intersect(path, {trace:false})
+			if (xLi instanceof paper.CompoundPath) xLi = inpol.clone()
+			inpol.remove()
+	}
+		else {
+			xLi = inpol    
+		}
+		
+		if (!xLi.length) console.log(t, b)
+		
+		p1 = l.getPointAt(l.length*y)
+		p2 = r.getPointAt(r.length*y)
+
+		//match(xLi, p1, p2)
+		utl.fixEnds(xLi, p1, p2)
+		
+		res = xLi.getPointAt(xLi.length * x)
+		if (res == null) {
+			console.log(x,y)
+			console.log(p1,p2)
+			console.log(xLi)
+			console.log(res)
+		}
+		
+		xLi.remove()
+		
+		return res
+	},
+
+	fixEnds: (path, p1, p2) => {
+		
+		smooth = () => {
+			smoothV = .1
+			
+			let smoothStart = path.divideAt(smoothV*path.length)
+			path.removeSegments(0,smoothStart.index)
+			
+			let smoothEnd = path.divideAt((1-smoothV)*path.length)
+			path.removeSegments(smoothEnd.index)
+		}
+		
+		smooth()
+		
+		let fpo = path.firstSegment
+		let lpo = path.lastSegment
+		
+		path.insert(0, new paper.Point(p1))
+		path.add(new paper.Point(p2))
+		
+		let outh = lpo.previous.location.tangent
+		outh.length = lpo.curve.length / 3
+		lpo.handleOut = outh
+		
+		let inh = fpo.next.location.tangent
+		inh.length = fpo.previous.curve.length / 3
+		inh.angle += 180
+		fpo.handleIn = inh
+	},
+
+
+	                                                                                                                         
+// 88888888ba,                                         d8'             88888888ba,                                          
+// 88      `"8b                                       d8'              88      `"8b                                         
+// 88        `8b                                     ""                88        `8b                                        
+// 88         88  8b,dPPYba,  ,adPPYYba,   ,adPPYb,d8  8b,dPPYba,      88         88  8b,dPPYba,   ,adPPYba,   8b,dPPYba,   
+// 88         88  88P'   "Y8  ""     `Y8  a8"    `Y88  88P'   `"8a     88         88  88P'   "Y8  a8"     "8a  88P'    "8a  
+// 88         8P  88          ,adPPPPP88  8b       88  88       88     88         8P  88          8b       d8  88       d8  
+// 88      .a8P   88          88,    ,88  "8a,   ,d88  88       88     88      .a8P   88          "8a,   ,a8"  88b,   ,a8"  
+// 88888888Y"'    88          `"8bbdP"Y8   `"YbbdP"Y8  88       88     88888888Y"'    88           `"YbbdP"'   88`YbbdP"'   
+//                                         aa,    ,88                                                          88           
+//                                          "Y8bbdP"                                                           88           
+
+
+	// DRAG'N DROP custom images =========================================
+	onDocumentDrag: (event) => {
+		const show = (elem) =>  {elem.style.display = 'block'}
+
+		show(document.getElementById('imageTarget'))
+		event.preventDefault()
+	},
+
+	onDocumentDrop: (callback) => (event) => {
+		const hide = (elem) => { elem.style.display = 'none' }
+	
+		event.preventDefault()
+	
+		if (event.target.id == 'imageTarget') {
+			var file = event.dataTransfer.files[0];
+			var reader = new FileReader();
+	
+			reader.onload = function (event) {
+				var image = document.createElement('img');
+	
+				image.onload = function () {
+					let raster = new paper.Raster(image);
+					// raster.visible = false;
+					
+					callback(raster);
+				};
+	
+				image.src = event.target.result;
+			};
+			
+			reader.readAsDataURL(file);
+			hide(document.getElementById('imageTarget'));
+		}
+	}
+
 
 };
