@@ -1650,18 +1650,79 @@ let utl = {
 		p1.remove()
 		p2.remove()
 		
-		let res = poly
+		let res = new paper.Group()
 
-		if (bgColor) { 
-			let bg = utl.centerR((0,0), [rad*2, rad*2], bgColor) 
-			res = new paper.Group(bg, poly)
-		}
+		if (bgColor) {
+			bgRe = new paper.Path.Rectangle(poly.bounds)
+			bgRe.fillColor = bgColor
+			res.addChild( bgRe)
+		} 
+		
+		res.addChild(poly)
 
 
 		return res
 
 	},
 
+	randomPath: (pointCount, minL, maxL, radius, boundingEl, opt, smooth=true, view) => {
+		const R = (a=1)=>Math.random()*a;
+		const Rpo = () => paper.Point.random() * view.bounds.bottomRight
+	
+		segs = []
+		currentP = boundingEl ? [boundingEl.interiorPoint, R(360)] : [Rpo(), R(360)]
+		
+		for (let i=0;i<pointCount;i++) {
+			newP = utl.getRPoint(currentP, segs, minL, maxL, radius, 60, boundingEl, view)
+			if (newP == undefined) continue
+			segs.push(newP[0])
+			currentP = newP
+		}
+	  
+		p = new paper.Path({segments: segs, strokeColor: 'black', strokeWidth: 1, strokeCap: 'round', ...opt})
+		if (smooth) p.smooth()
+	
+		return p
+	},
+	
+	getRPoint: (curp, points, minL, maxL, radius, angle, boundingEl, view) => {
+		tries = 0
+		vb = view.bounds
+		const R = (a=1)=>Math.random()*a;
+		
+		while (true) {
+			dir = tries % 2 != 0 ? -1 : 1
+			rL = minL + R(maxL-minL + tries)
+			rA = curp[1] + (dir * R(50 + tries))
+			myP = curp[0].add(new paper.Point({angle: rA, length: rL}))
+			
+			const checkBounds = boundingEl ? isOutGivenBounds : isOutBounds;
+	
+			if (!checkBounds(myP, boundingEl) && !isNearAnyPoint(myP, points, radius)) {
+				return [myP, rA];
+			}
+			
+			if (tries > 200) break
+			
+			tries++
+		}  
+	
+		function isOutBounds(p) {
+			if (p.x < 0 || p.x > vb.right || p.y < 0 || p.y > vb.bottom) return true
+		}
+		
+		function isOutGivenBounds(p, boundingElement) {
+			return !boundingElement.contains(p)
+		}
+		
+		function isNearAnyPoint(p, points, r) {
+			r = r / 2;
+			return points.some(cp => 
+				cp.x > p.x - r && cp.x < p.x + r && cp.y > p.y - r && cp.y < p.y + r
+			)
+		}
+	},
+	
 
 
 	                                               
