@@ -39,6 +39,11 @@ let utl = {
     sinBetween: (min, max, t) => {
         return ((max - min) * Math.sin(t) + max + min) / 2;
     },
+	RBias(min, max, bias, influence) {
+		var rnd = Math.random() * (max - min) + min,   // random in range
+			mix = Math.random() * influence;           // random mixer
+		return rnd * (1 - mix) + bias * mix;           // mix full range and bias
+	},
 	
 	
 	//        db                                                          
@@ -383,9 +388,9 @@ let utl = {
                                                                                                   
                                                                                                   
 
-	occlusionX: (item, cookie=false, origColors=false, smallLines=0.1, verbose=true) => {
+	occlusionX: (item, cookie=false, origColors=false, smallLines=0.1, verbose=true, callback) => {
 		utl.ungroup(item)
-		res = new paper.Group()
+		let res = new paper.Group()
 
 		// function process(items) {
 		// 	origs = items
@@ -451,7 +456,7 @@ let utl = {
 
 			el = origs[x]
 
-			if (verbose && x % 10 == 0) console.log('processing ' + (len - x) + '/' + len)
+			if (verbose && x % 10 == 0) console.log('hatch filling ' + (len - x) + '/' + len)
 			
 			// use variables instead of accessing properties for possible speed advantage
 			let fillC, strokeC
@@ -565,8 +570,7 @@ let utl = {
 					res.strokeWidth = 1
 				}
 
-				return res
-
+				callback(res)
 			}
 		}
 
@@ -1029,8 +1033,8 @@ let utl = {
 		
 	},
 
-	// Hatch fill any shape
-	hatchFillAny: (origpath, penW, angle, color, debug=false, crossHatch=false) => {
+	// Hatch fill any shape	
+	hatchFillAny: (origpath, penW, angle, color, debug=false, crossHatch=false, zigzag=true) => {
 		
 		if (origpath == null || origpath.area < 1) return 
 
@@ -1198,13 +1202,18 @@ let utl = {
 		
 				// Create lines, go through all the groups created previously
 				for (var i = 0; i < oRunList.length; i++) {
-					var continuousLine = new paper.Path({strokeColor: path.strokeColor});
+
+					var continuousLine
+					if (zigzag) continuousLine = new paper.Path({strokeColor: path.strokeColor})
+
 					var myList = oRunList[i];
 		
 					if (myList.length == 0) console.log('Tyhjä myList')
 		
 					// Every other end connected to create zigzag pattern
 					for (var k = 0; k < myList.length; k++) {
+						if (!zigzag) continuousLine = new paper.Path({strokeColor: path.strokeColor});
+
 						if (isEven(k)) {
 							addToContinuousLine(0)
 							addToContinuousLine(1)
@@ -1213,13 +1222,14 @@ let utl = {
 							addToContinuousLine(1)
 							addToContinuousLine(0)
 						}
+						if (!zigzag) lines.addChild(continuousLine);
 					}
 		
 					function addToContinuousLine(ind) {
 						continuousLine.add(myList[k][ind]);
 					}
 					
-					lines.addChild(continuousLine);
+					if (zigzag) lines.addChild(continuousLine);
 				}
 				
 				// Put lines vector element into drawing in front of the texturized path
@@ -1724,6 +1734,71 @@ let utl = {
 	},
 	
 
+// Polygon shaped radial lines with random line colors
+polyKhronos: ({
+    center,
+    radius,
+    sides,
+    lineFreq,
+    width,
+    colors,
+    weights,
+    mask = false,
+    maskOff = 0 // Assuming a default value for maskOff
+}) => {
+    let res = new paper.Group();
+    let po = (p, r, s) => new paper.Path.RegularPolygon({ center: p, radius: r, sides: s });
+
+    let c = center;
+    let s = sides;
+    let r = radius;
+    let w = s !== 3 ? width : width * 1.2;
+
+    let pl1 = po(c, r, s);
+    let pl2 = po(c, r + w, s);
+
+    let le = pl1.length;
+    let cnt = s !== 3 ? Math.floor(le / lineFreq) : Math.floor(le / lineFreq * .8);
+
+    let step = le / cnt;
+    let step2 = pl2.length / cnt;
+
+    let pl3 = po(c, r - maskOff, s);
+    let pl4 = po(c, r + w + maskOff, s);
+
+    let maskElement;
+    if (mask) {
+        maskElement = pl4.subtract(pl3);
+        maskElement.fillColor = '#111';
+        maskElement.parent = res;
+    }
+
+    for (let i = 0; i < cnt; i++) {
+        let col = weightedR(colors, weights);
+        let l = pl1.getLocationAt(i * step);
+        let n = l.normal;
+        let p = l.point;
+
+        let l2 = pl2.getLocationAt(i * step2);
+        let p2 = l2.point;
+
+        new paper.Path.Line({
+            from: p,
+            to: p2,
+            strokeColor: col,
+            strokeWidth: 1.8 * mm, // Ensure 'mm' is defined somewhere or provide a default value
+            parent: res,
+            strokeCap: 'round'
+        });
+    }
+
+    let rem = [pl1, pl2, pl3, pl4];
+    rem.forEach(r => r.remove());
+
+    return res;
+},
+
+
 
 	                                               
 // 88888888ba                        88           
@@ -2173,7 +2248,6 @@ let utl = {
 			})
 		})
 
-		// console.log(res)
 		paths.forEach(it => it.remove())
 		return res
 		
