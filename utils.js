@@ -14,6 +14,8 @@ let utl = {
 	// 88     `8'     88  `"8bbdP"Y8    "Y888  88       88  
 	
 	R: (a) => Math.random() * a,
+
+	F: (a) => Math.floor(a),	
                                                      
     isEven: (n) => {
         return n % 2 === 0;
@@ -43,6 +45,12 @@ let utl = {
 		var rnd = Math.random() * (max - min) + min,   // random in range
 			mix = Math.random() * influence;           // random mixer
 		return rnd * (1 - mix) + bias * mix;           // mix full range and bias
+	},
+	mapRange: (value, inMin, inMax, outMin, outMax) => {
+        return outMin + ((outMax - outMin) * (value - inMin)) / (inMax - inMin);
+    },
+	sineDenseMiddle: (x, max) => {
+		return Math.sin((x / max) * Math.PI);
 	},
 	
 	
@@ -92,6 +100,55 @@ let utl = {
 		const safeIndex = Math.max(0, Math.min(index, array.length - 1));
 		return array[safeIndex];
 	},
+
+	weightedRV: (array, weights, value, proximityRange) => {
+		function getRandomElementInRange(weightedArray, minIndex, maxIndex) {
+			// Ensure that the indices are within the array bounds
+			minIndex = Math.max(0, Math.min(minIndex, weightedArray.length - 1));
+			maxIndex = Math.max(0, Math.min(maxIndex, weightedArray.length - 1));
+	
+			// Calculate the total weight within the specified range
+			let totalWeight = 0;
+			for (let i = minIndex; i <= maxIndex; i++) {
+				totalWeight += weightedArray[i] ? weightedArray[i].weight : 0;
+			}
+	
+			// Choose a random value within the total weight
+			let threshold = Math.random() * totalWeight;
+	
+			// Select an element based on the random value and weights
+			for (let i = minIndex; i <= maxIndex; i++) {
+				if (weightedArray[i]) {
+					threshold -= weightedArray[i].weight;
+					if (threshold < 0) {
+						return weightedArray[i].value;
+					}
+				}
+			}
+	
+			// In case no element is found (shouldn't normally happen), return a fallback
+			
+			return null;
+		}
+	
+		// Ensure proximityRange is within reasonable bounds
+		proximityRange = Math.min(proximityRange, array.length);
+	
+		// Create an array of objects with values and corresponding weights
+		const weightedArray = array.map((value, index) => ({ value, weight: weights[index] || 0 }));
+	
+		// Determine the target index based on the provided value
+		const targetIndex = Math.round(value * (array.length - 1));
+	
+		// Calculate the min and max indices for the range
+		const minIndex = targetIndex - proximityRange;
+		const maxIndex = targetIndex + proximityRange;
+	
+		// Get a random element within the range
+		return getRandomElementInRange(weightedArray, minIndex, maxIndex);
+	},
+	
+	
 
                                                                                       
 // 8b           d8                                                                   
@@ -2939,6 +2996,18 @@ polyKhronos: ({
 //                                         aa,    ,88                                                          88           
 //                                          "Y8bbdP"                                                           88           
 
+// Image drop Put these to js
+// const callbackF = (raster) => {
+// 	raster.size = new Size(gDim.x+1, gDim.y+1)
+// 	update(raster)
+
+// };
+
+// document.addEventListener('drop', utl.onDocumentDrop(callbackF), false);
+// document.addEventListener('dragover', utl.onDocumentDrag, false)
+// document.addEventListener('dragleave', utl.onDocumentDrag, false)
+
+
 
 	// DRAG'N DROP custom images =========================================
 	onDocumentDrag: (event) => {
@@ -2973,7 +3042,389 @@ polyKhronos: ({
 			reader.readAsDataURL(file);
 			hide(document.getElementById('imageTarget'));
 		}
-	}
+	},
+
+                                                                         
+// 88                                                                       
+// 88                                                                ,d     
+// 88                                                                88     
+// 88           ,adPPYYba,  8b       d8   ,adPPYba,   88       88  MM88MMM  
+// 88           ""     `Y8  `8b     d8'  a8"     "8a  88       88    88     
+// 88           ,adPPPPP88   `8b   d8'   8b       d8  88       88    88     
+// 88           88,    ,88    `8b,d8'    "8a,   ,a8"  "8a,   ,a88    88,    
+// 88888888888  `"8bbdP"Y8      Y88'      `"YbbdP"'    `"YbbdP'Y8    "Y888  
+//                              d8'                                         
+//                             d8'                                          
+
+	// Layout items on a page, each item: [item, <scaling factor>, <position array [x,y], 1 = touch right/bottom margin, -1 = touch left/top margin>]
+	layout: (items, paperWidth, paperHeight, margin, view, showGuides=false, bgCol) => {
+		let isLandscape = paperWidth > paperHeight;
+		let vh, vw, outW, outH, mrg;
+
+		if (isLandscape) {
+			// Landscape Orientation
+			vw = view.size.width;
+			outH = vw * (paperHeight / paperWidth);
+			mrg = vw * (margin*2 / paperWidth);
+		} else {
+			// Portrait Orientation
+			vh = view.size.height;
+			outW = vh * (paperWidth / paperHeight);
+			mrg = vh * (margin*2 / paperHeight);
+		}
+
+		// Rectangles for outer bounds of paper and margins
+		let r = isLandscape ? new paper.Rectangle(0, 0, vw, outH) : new paper.Rectangle(0, 0, outW, vh);
+		let rIn = isLandscape ? new paper.Rectangle(0, 0, vw - mrg, outH - mrg) : new paper.Rectangle(0, 0, outW - mrg, vh - mrg);
+		rIn.center = r.center;
+
+		let r2 = new paper.Path.Rectangle(r);
+		r2.strokeWidth = 1;
+		r2.strokeColor = 'black';
+		r2.fillColor = bgCol ? bgCol : null
+
+		if (showGuides) {
+			let r3 = new paper.Path.Rectangle(rIn);
+			r3.strokeColor = 'blue';
+			r3.opacity = .2;
+		}
+
+		items.forEach(itO => {
+			let it = itO[0];
+			let ib = it.bounds;
+
+			if (ib.width > rIn.width || ib.height > rIn.height) {
+				it.fitBounds(rIn);
+			}
+
+			it.position = rIn.center;
+
+			if (itO[1]) it.scale(itO[1], itO[1]);
+
+			ib = it.bounds; // update to reflect transformations
+
+			if (itO[2]) {
+				let xMax = rIn.right - ib.right;
+				let yMax = rIn.bottom - ib.bottom;
+				it.translate(itO[2][0] * xMax, itO[2][1] * yMax);
+			}
+			it.bringToFront();
+		})
+	},
+
+
+	layoutExport: (width, height, project)  => {
+        let mm = 2.83465
+		let origViewSize = project.view.viewSize.clone()
+		let origActiveLayerBounds = project.activeLayer.bounds.clone()
+
+        project.view.viewSize = new paper.Size(width*mm, height*mm);
+        project.activeLayer.fitBounds(project.view.bounds)
+
+        var svg = project.exportSVG({asString: true})
+        var blob = new Blob([svg], {type: "image/svg+xml;charset=utf-8"})
+        saveAs(blob, 'image.svg')
+
+		// return size properties after export
+		project.view.viewSize = origViewSize
+		project.activeLayer.fitBounds(origActiveLayerBounds) 
+
+	},
+
+	                                                                        
+// 88888888ba,    88                                                       
+// 88      `"8b   ""               ,d                               ,d     
+// 88        `8b                   88                               88     
+// 88         88  88  ,adPPYba,  MM88MMM  ,adPPYba,   8b,dPPYba,  MM88MMM  
+// 88         88  88  I8[    ""    88    a8"     "8a  88P'   "Y8    88     
+// 88         8P  88   `"Y8ba,     88    8b       d8  88            88     
+// 88      .a8P   88  aa    ]8I    88,   "8a,   ,a8"  88            88,    
+// 88888888Y"'    88  `"YbbdP"'    "Y888  `"YbbdP"'   88            "Y888  
+                                                                        
+       
+    // Shift slices of image to opposite directions -----------------------------------------
+    shift: (item, slizeSize, amount, vertical = false, ungroup = false) => {
+		console.log('distorting: shift')
+		let ib = item.bounds
+
+		let max = vertical ? ib.height : ib.width
+
+		let num = utl.F(max / slizeSize)
+
+		let step = max / num
+
+		let resGroup = new paper.Group()
+
+		let clips = []
+
+		for (let i=0;i<num;i++) {
+						
+			let clipGroup = new paper.Group({parent: resGroup, clipped: true})
+			clips.push(clipGroup)
+
+			tl = ib.topLeft.clone()
+			tl[vertical ? 'x' : 'y'] += step * i
+
+			clipsize = vertical ? [step, ib.height] : [ib.width, step] 
+
+			let mask = new paper.Path.Rectangle({point: tl, size: clipsize, parent: clipGroup })
+
+			let ic = item.clone()
+			ic.insertBelow(mask)
+
+			mask.clipMask = true
+
+			dir = i%2 == 0 ? 1 : -1
+			clipGroup.position[vertical ? 'y' : 'x'] += amount * dir;
+
+		}
+
+		// clips.forEach(clip => vdist.ungroup(clip))
+		if (ungroup) utl.ungroup(resGroup)
+
+		for (let i=resGroup.children.length-1;i>-1;i--){
+			el = resGroup.children[i] 
+			if (el.length == 0) el.remove()
+		}
+
+		item.remove()
+
+		return resGroup
+
+	},
+
+	triangulate: (item, count, power, pivotType = 1, ungroup = false, poisson = false) => {
+		console.log('distorting: triangulate')
+		let ib = item.bounds
+		let resGroup = new paper.Group()
+
+		let randomPoints = [ib.topCenter.x, ib.topCenter.y, ib.leftCenter.x, ib.leftCenter.y, ib.bottomCenter.x, ib.bottomCenter.y, ib.rightCenter.x, ib.rightCenter.y]
+		let points = []
+		points.push([ib.topCenter.x, ib.topCenter.y], [ib.leftCenter.x, ib.leftCenter.y], [ib.bottomCenter.x, ib.bottomCenter.y], [ib.rightCenter.x, ib.rightCenter.y])
+
+		if (!poisson) {
+			for (let i=0;i<count;i++) {
+				x = utl.R(ib.width) + ib.left
+				y = utl.R(ib.height) + ib.top
+				randomPoints.push( x, y ) // x coordinate
+				points.push([x,y])
+			}
+		}
+		else {
+			const pds = new PoissonDiskSampling({
+				shape: [ib.width, ib.height],
+				minDistance: ib.width / (count * 2),
+				maxDistance: ib.width / count,
+				tries:10,
+				distanceFunction: function (p) {
+					return 1 - vdist.getValue(p[0], p[1], ib.width, ib.height); // value between 0 and 1
+				}
+			});
+			
+			let poisPoints = pds.fill()
+
+			poisPoints.forEach(p => {p[0] += ib.left; p[1] += ib.top})
+
+			// let C = (x,y,r) => new paper.Path.Circle({center: new paper.Point(x,y), radius: r, fillColor: 'red' })
+
+			// poisPoints.forEach(p => {
+			// 	C(p[0], p[1], 2)
+			// })
+
+			poisPoints.forEach(po => {
+				randomPoints.push(po[0], po[1]);
+				points.push(po);
+			})
+		}
+		
+		const delaunay = new Delaunator(randomPoints);
+		let tri = delaunay.triangles
+		let co = delaunay.coords
+
+		forEachTriangle(points, delaunay, drawTri)
+		if (ungroup) utl.ungroup(resGroup);
+
+		item.remove()
+
+		return resGroup
+
+		
+
+		// Helpers
+
+		function drawTri(inp, points) {
+
+			let clipGroup = new paper.Group({parent: resGroup, clipped: true})
+
+			let mask = new paper.Path({
+				segments: points,
+				strokeColor: 'red',
+				strokeWidth: 1,
+				closed: true,
+				parent: clipGroup
+			})
+
+			let ic = item.clone()
+			ic.insertBelow(mask)
+			ic.pivot = pivotType == 1 ? mask.bounds.center : ic.center
+
+			ic.rotate(Math.random() * power * 180)
+
+			mask.clipMask = true
+		}
+
+		function edgesOfTriangle(t) { return [3 * t, 3 * t + 1, 3 * t + 2]; }
+
+		function pointsOfTriangle(delaunay, t) {
+			return edgesOfTriangle(t)
+				.map(e => delaunay.triangles[e]);
+		}
+
+		function forEachTriangle(points, delaunay, callback) {
+			for (let t = 0; t < delaunay.triangles.length / 3; t++) {
+				callback(t, pointsOfTriangle(delaunay, t).map(p => points[p]));
+			}
+		}
+
+	},          
+	
+	getValue: (x, y, width, height) => {
+		// Calculate the center of the area
+		const centerX = width / 2;
+		const centerY = height / 2;
+	
+		// Calculate the maximum distance from the center
+		const maxDistance = Math.sqrt((centerX ** 2) + (centerY ** 2));
+	
+		// Calculate the distance from the center to the given coordinate
+		const distance = Math.sqrt((x - centerX) ** 2 + (y - centerY) ** 2);
+	
+		// Calculate the value based on the distance
+		const value = 1 - distance / maxDistance;
+	
+		// Ensure the value is within the [0, 1] range
+		return Math.max(0, Math.min(1, value));
+	},
+
+	                                                         
+// 88888888ba                          88  88               
+// 88      "8b                         88  ""               
+// 88      ,8P                         88                   
+// 88aaaaaa8P'  ,adPPYba,  8b,dPPYba,  88  88  8b,dPPYba,   
+// 88""""""'   a8P_____88  88P'   "Y8  88  88  88P'   `"8a  
+// 88          8PP"""""""  88          88  88  88       88  
+// 88          "8b,   ,aa  88          88  88  88       88  
+// 88           `"Ybbd8"'  88          88  88  88       88  
+                                                         
+                                                         
+
+    // Perlin noise integration
+    perlin: (function() {
+        var permutation = [
+			151,160,137,91,90,15,
+			131,13,201,95,96,53,194,233,7,225,140,36,103,30,69,142,8,99,37,240,21,10,23,
+			190, 6,148,247,120,234,75,0,26,197,62,94,252,219,203,117,35,11,32,57,177,33,
+			88,237,149,56,87,174,20,125,136,171,168, 68,175,74,165,71,134,139,48,27,166,
+			77,146,158,231,83,111,229,122,60,211,133,230,220,105,92,41,55,46,245,40,244,
+			102,143,54, 65,25,63,161, 1,216,80,73,209,76,132,187,208, 89,18,169,200,196,
+			135,130,116,188,159,86,164,100,109,198,173,186, 3,64,52,217,226,250,124,123,
+			5,202,38,147,118,126,255,82,85,212,207,206,59,227,47,16,58,17,182,189,28,42,
+			223,183,170,213,119,248,152, 2,44,154,163, 70,221,153,101,155,167, 43,172,9,
+			129,22,39,253, 19,98,108,110,79,113,224,232,178,185, 112,104,218,246,97,228,
+			251,34,242,193,238,210,144,12,191,179,162,241, 81,51,145,235,249,14,239,107,
+			49,192,214, 31,181,199,106,157,184, 84,204,176,115,121,50,45,127, 4,150,254,
+			138,236,205,93,222,114,67,29,24,72,243,141,128,195,78,66,215,61,156,180
+		];
+	
+		function scalenum(n) {
+			return (1 + n)/2;
+		}
+	
+		function grad(hash, x, y, z) {
+			var h = hash & 15,       // convert lo 4 bits of hash code
+				u = h < 8 ? x : y,   // into 12 gradient directions
+				v = h < 4 ? y : h == 12 || h == 14 ? x : z;
+			return ((h&1) == 0 ? u : -u) + ((h&2) == 0 ? v : -v);
+		}
+	
+		function fade(t) {
+			return t * t * t * (t * (t * 6 - 15) + 10);
+		}
+	
+		// linear interpolation between a and b by amount t (0, 1)
+		function lerp(t, a, b) {
+			return a + t * (b - a);
+		}
+	
+		var noise = function(scale) {
+			// build the perm array
+			var p = new Array(512)
+			for (var i=0; i < 256 ; i++) {
+				p[256+i] = p[i] = permutation[i];
+			}
+	
+			return function(x, y, z) {
+	
+				if(!z) z = 0;
+	
+				x *= scale;
+				y *= scale;
+				z *= scale;
+	
+				// find unit cube that contains this point
+				var X = Math.floor(x) & 255,
+					Y = Math.floor(y) & 255,
+					Z = Math.floor(z) & 255;
+	
+				// find relative x, y, z of point in cube
+				x -= Math.floor(x);
+				y -= Math.floor(y);
+				z -= Math.floor(z);
+	
+				// compute the face curves for each of X, Y, Z
+				var u = fade(x),
+					v = fade(y),
+					w = fade(z);
+	
+				// hash coordinates of the 8 cube corners
+				var A  = p[X  ]+Y,
+					AA = p[A  ]+Z,
+					AB = p[A+1]+Z,
+					B  = p[X+1]+Y,
+					BA = p[B  ]+Z,
+					BB = p[B+1]+Z;
+	
+				var lo =
+					lerp(v,
+						lerp(u, grad(p[AA  ], x  , y  , z   ),
+								grad(p[BA  ], x-1, y  , z   )),
+						lerp(u, grad(p[AB  ], x  , y-1, z   ),
+								grad(p[BB  ], x-1, y-1, z   )));
+	
+				var hi =
+					lerp(v,
+						lerp(u, grad(p[AA+1], x  , y  , z-1 ),
+								grad(p[BA+1], x-1, y  , z-1 )),
+						lerp(u, grad(p[AB+1], x  , y-1, z-1 ),
+								grad(p[BB+1], x-1, y-1, z-1 )));
+	
+				// add blended results from 8 corners of cube
+				return scalenum(lerp(w, lo, hi));
+			}
+		};
+
+        return {
+            noise: noise
+        };
+    })(),
+
+    // New noise function that uses the integrated Perlin noise
+    noise: (phase) => {
+        // Initialize Perlin noise with a scale, for example, 1
+        var perlinNoise = utl.perlin.noise(1);
+        return perlinNoise(phase, phase, phase);
+    },
+
 
 
 };
