@@ -1696,6 +1696,7 @@ let utl = {
 		return res;
 	},
 	
+	//torus like polygon
 	polygon: (sides=6, rad=20, thickness=5, color='black', bgColor=null) => {
 
 		let p1 = new paper.Path.RegularPolygon({
@@ -1732,6 +1733,7 @@ let utl = {
 
 	},
 
+	//Fill bounding element area with random line that avoids near touches
 	randomPath: (pointCount, minL, maxL, radius, boundingEl, opt, smooth=true, view) => {
 		const R = (a=1)=>Math.random()*a;
 		const Rpo = () => paper.Point.random() * view.bounds.bottomRight
@@ -1789,71 +1791,134 @@ let utl = {
 			)
 		}
 	},
+
+	blob: (length, rad, dns, smoothness, opt) => {
+		P = (x,y) => new Point(x,y)
+		pa = (segs) => new Path({segments: segs})
+		
+		l = pa([P(0,0), P(length,0)])
+		l1 = l.segments[0].point
+		l2 = l.segments[1].point
+		
+		ang = l1.subtract(l2).angle
+		ang = ang < 0 ? 360-Math.abs(ang) : ang
+		
+		points = []
+		
+		for (let i=0;i<n;i++) {
+			
+			myan = 360/n*i
+			
+			if (!checkA(myan, ang)) {    
+				let vector = V(myan, R(ra / 2) + ra / 2);
+				let point = l.segments[1].point.add(vector);
+				points.push(point);
+			}
+		
+			if (!checkA(myan, ang - 180)) {
+				let vector = V(myan, R(ra / 2) + ra / 2);
+				let point = l.segments[0].point.add(vector);
+				points.push(point);
+			}
+		}
+		
+		let center = l.getPointAt(l.length/2)
+		
+		function angleToPoint(center, point) {
+			return Math.atan2(point.y - center.y, point.x - center.x);
+		}
+		
+		let angleTolerance = smoothness
+		let uniquePoints = points.filter((point, index, self) => {
+			let angle = angleToPoint(center, point);
+			return self.findIndex(p => {
+				let otherAngle = angleToPoint(center, p);
+				return Math.abs(angle - otherAngle) < angleTolerance;
+			}) === index;
+		});
+		
+		
+		uniquePoints.sort((a, b) => {
+			let angleA = angleToPoint(center, a);
+			let angleB = angleToPoint(center, b);
+			return angleA - angleB;
+		});
+		
+		
+		mypa = new Path({
+			segments: uniquePoints,
+			closed: true,
+			...opt
+		})
+		
+		mypa.smooth()
+		
+		return mypa
+	},
 	
+	// Polygon shaped radial lines with random line colors
+	polyKhronos: ({
+		center,
+		radius,
+		sides,
+		lineFreq,
+		width,
+		colors,
+		weights,
+		mask = false,
+		maskOff = 0 // Assuming a default value for maskOff
+	}) => {
+		let res = new paper.Group();
+		let po = (p, r, s) => new paper.Path.RegularPolygon({ center: p, radius: r, sides: s });
 
-// Polygon shaped radial lines with random line colors
-polyKhronos: ({
-    center,
-    radius,
-    sides,
-    lineFreq,
-    width,
-    colors,
-    weights,
-    mask = false,
-    maskOff = 0 // Assuming a default value for maskOff
-}) => {
-    let res = new paper.Group();
-    let po = (p, r, s) => new paper.Path.RegularPolygon({ center: p, radius: r, sides: s });
+		let c = center;
+		let s = sides;
+		let r = radius;
+		let w = s !== 3 ? width : width * 1.2;
 
-    let c = center;
-    let s = sides;
-    let r = radius;
-    let w = s !== 3 ? width : width * 1.2;
+		let pl1 = po(c, r, s);
+		let pl2 = po(c, r + w, s);
 
-    let pl1 = po(c, r, s);
-    let pl2 = po(c, r + w, s);
+		let le = pl1.length;
+		let cnt = s !== 3 ? Math.floor(le / lineFreq) : Math.floor(le / lineFreq * .8);
 
-    let le = pl1.length;
-    let cnt = s !== 3 ? Math.floor(le / lineFreq) : Math.floor(le / lineFreq * .8);
+		let step = le / cnt;
+		let step2 = pl2.length / cnt;
 
-    let step = le / cnt;
-    let step2 = pl2.length / cnt;
+		let pl3 = po(c, r - maskOff, s);
+		let pl4 = po(c, r + w + maskOff, s);
 
-    let pl3 = po(c, r - maskOff, s);
-    let pl4 = po(c, r + w + maskOff, s);
+		let maskElement;
+		if (mask) {
+			maskElement = pl4.subtract(pl3);
+			maskElement.fillColor = '#111';
+			maskElement.parent = res;
+		}
 
-    let maskElement;
-    if (mask) {
-        maskElement = pl4.subtract(pl3);
-        maskElement.fillColor = '#111';
-        maskElement.parent = res;
-    }
+		for (let i = 0; i < cnt; i++) {
+			let col = weightedR(colors, weights);
+			let l = pl1.getLocationAt(i * step);
+			let n = l.normal;
+			let p = l.point;
 
-    for (let i = 0; i < cnt; i++) {
-        let col = weightedR(colors, weights);
-        let l = pl1.getLocationAt(i * step);
-        let n = l.normal;
-        let p = l.point;
+			let l2 = pl2.getLocationAt(i * step2);
+			let p2 = l2.point;
 
-        let l2 = pl2.getLocationAt(i * step2);
-        let p2 = l2.point;
+			new paper.Path.Line({
+				from: p,
+				to: p2,
+				strokeColor: col,
+				strokeWidth: 1.8 * mm, // Ensure 'mm' is defined somewhere or provide a default value
+				parent: res,
+				strokeCap: 'round'
+			});
+		}
 
-        new paper.Path.Line({
-            from: p,
-            to: p2,
-            strokeColor: col,
-            strokeWidth: 1.8 * mm, // Ensure 'mm' is defined somewhere or provide a default value
-            parent: res,
-            strokeCap: 'round'
-        });
-    }
+		let rem = [pl1, pl2, pl3, pl4];
+		rem.forEach(r => r.remove());
 
-    let rem = [pl1, pl2, pl3, pl4];
-    rem.forEach(r => r.remove());
-
-    return res;
-},
+		return res;
+	},
 
 
 
