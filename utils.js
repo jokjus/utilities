@@ -229,18 +229,25 @@ let utl = {
 	},
 
 	// Function to generate random points with Poisson Disc Sampling
-	genPoissonPoints: (center, maxDistance, minDistance, count) => {
+	genPoissonPoints: (center, width, height, maxDistance, minDistance, count) => {
 
 		const pds = new PoissonDiskSampling({
-			shape: [maxDistance * 2, maxDistance * 2],
-			minDistance,
+			shape: [width, height],
+			minDistance: minDistance,
+			maxDistance: maxDistance,
+			tries: 50
 		});
 
-		pds.addRandomPoints(count);
 
-		const points = pds.getPoints().map(([x, y]) => new Point(center.x + x, center.y + y));
+		let poisPoints = pds.fill()
+
+		// pds.addRandomPoints(count);
+
+		const points = poisPoints.map(([x, y]) => new paper.Point(center.x + x, center.y + y));
+
 		return points;
 	},
+
 
 	addPointToCurve: (path, offset) => {
         var p = path.getPointAt(offset);
