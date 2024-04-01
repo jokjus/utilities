@@ -1793,8 +1793,10 @@ let utl = {
 	},
 
 	blob: (length, rad, dns, smoothness, opt) => {
-		P = (x,y) => new Point(x,y)
-		pa = (segs) => new Path({segments: segs})
+		checkA = (a1, a2, tole=40) => Math.abs(a1 - a2) < tole
+		P = (x,y) => new paper.Point(x,y)
+		pa = (segs) => new paper.Path({segments: segs})
+		V = (a,l) => new paper.Point({angle:a, length:l})
 		
 		l = pa([P(0,0), P(length,0)])
 		l1 = l.segments[0].point
@@ -1845,13 +1847,14 @@ let utl = {
 		});
 		
 		
-		mypa = new Path({
+		mypa = new paper.Path({
 			segments: uniquePoints,
 			closed: true,
 			...opt
 		})
 		
 		mypa.smooth()
+		l.remove()
 		
 		return mypa
 	},
