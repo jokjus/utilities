@@ -2,6 +2,122 @@
 paper = paper && Object.prototype.hasOwnProperty.call(paper, 'default') ? paper['default'] : paper;
 
 let utl = {	
+	poscas: {
+		'silver': '#BABCBB',
+		'grey' : '#98999D',
+		'slate grey' : '#5B6870',
+		'deep grey' : '#545859',
+		'black' : '#2d2926',
+		'green' : '#0E793D',
+		'metallic green' : '#57a499',
+		'glitter light blue' : '#4694af',
+		'blue' : '#005e9e',
+		'navy blue' : '#002b49',
+		'preussian blue' : '#320071',
+		'metallic violet' : '#725899',
+		'fluorescent green' : '#00bf6f',
+		'aqua green' : '#4db7b6',
+		'turquoise' : '#0097cd',
+		'glitter blue' : '#0076b7',
+		'glitter violet' : '#765c9b',
+		'glitter green' : '#659959',
+		'light green' : '#80e0a7',
+		'metallic blue' : '#5d99ae',
+		'sky blue' : '#009cde',
+		'raspberry': '#893b67',
+		'gold' : '#bb9b38',
+		'glitter yellow' : '#bdb002',
+		'apple green' : '#78be21',
+		'light blue' : '#5bc2e7',
+		'lavender' : '#d8a5f3',
+		'metallic pink' : '#a56d95',
+		'ochre' : '#c59213',
+		'straw yellow' : '#fbd872',
+		'light pink' : '#e9b8e5',
+		'glitter pink' : '#b97e90',
+		'red wine' : '#934953',
+		'fluorescent yellow' : '#ffff2d',
+		'beige' : '#f6e1cc',
+		'pink' : '#f57eb6',
+		'glitter red' : '#b95e70',
+		'yellow' : '#ffd101',
+		'fluorescent light orange': '#ffd635',
+		'orange' : '#ff901d',
+		'light orange' : '#ffbe9e',
+		'coral pink' : '#ff8ca1',
+		'fluorescent pink' : '#ff3eb5',
+		'dark brown' : '#572d2d',
+		'glitter orange' : '#c77335',
+		'fluorescent orange' : '#ff7244',
+		'metallic red' : '#bf6e59',
+		'cacao brown' : '#7c3a2d',
+		'fluorescent red' : '#ff5256',
+		'red' : '#e13e53',
+		'khaki': '#3e4827',
+		'english green': '#205c40',
+		'emerald green': '#169387',
+		'deep gray': '#545859',
+		'fuchsia': '#9a1E66',
+		'dark red': '#9d2236',
+		'ruby red': '#b8312d',
+		'violet': '#8246AF',
+		'bright yellow': '#ef9021',
+		'bronze': '#bb8459',
+		'brown': '#c07d59',
+		'lilac': '#7d55c7',
+		'light green': '#80e0a7',
+		'apricot': '#f7d774',
+		'sunshine yellow': '#fbfc72',
+		'ivory': '#f2eec9',
+		'white': '#fff'
+	},
+
+	molotows: {
+		"zinc yellow": "#fff713",
+		"orange DARE": "#ee7620",
+		"traffic red": "#d51023",
+		"burgundy": "#6a192c",
+		"purple violet": "#74324a",
+		"shock blue middle": "#00a2e2",
+		"shock blue": "#0083ba",
+		"true blue": "#004b9a",
+		"petrol": "#004470",
+		"violet dark": "#1e1056",
+		"currant": "#56407e",
+		"magenta": "#b71d5b",
+		"fuchsia pink": "#d36aa2",
+		"neon pink": "#eb5692",
+		"calypso middle": "#74bd8b",
+		"lagoon blue": "#009994",
+		"turquoise": "#00794d",
+		"poison green": "#dedd2e",
+		"grasshopper": "#b1cc35",
+		"UNIVERSES green": "#49ae41",
+		"MISTER GREEN": "#00632e",
+		"future green": "#004811",
+		"amazonas light": "#7a9b7a",
+		"hazelnut brown": "#391602",
+		"lobster": "#be3218",
+		"ocher brown light": "#d68307",
+		"signal white": "#ffffff",
+		"signal black": "#000000",
+		"nature white": "#faf4e3",
+		"vanilla pastel": "#ffeb91",
+		"sahara beige pastel": "#fcc253",
+		"peach pastel": "#f9a97e",
+		"skin pastel": "#f8c1b8",
+		"lago blue pastel": "#81b5c0",
+		"lilac pastel": "#cca9d0",
+		"ceramic light pastel": "#66b8eb",
+		"blue violet pastel": "#739ad1",
+		"cool grey pastel": "#808a94",
+		"grey blue light": "#bdbcbb",
+		"grey blue dark": "#6e7172",
+		"neon yellow fluo": "#fff264",
+		"neon orange fluo": "#f7ad66",
+		"neon pink fluo": "#f29ec4",
+		"neon green fluo": "#b8d483",	
+	},
 	
 	
 	// 88b           d88                       88           
@@ -350,6 +466,7 @@ let utl = {
 		let curPos = 0
 		let counter = 0
 		let delta = 0.01
+		grayValues = false
 
 		while (curPos < p.length) {
 			
@@ -359,62 +476,74 @@ let utl = {
 			// introduce little width randomizing
 			let stepW = w ? w : myart.bounds.height / 1.5 * (Math.random() * randomizeWidth + 1)
 
+			// clone will be used for individual letter
 			let artClone = myart.clone()
 
 			// get points of a rectangle that is along the path
 			let n = p.getNormalAt(curPos)
 			let myp = p.getPointAt(curPos)
 
-			let myMidP = curPos + stepW / 2 < p.length ? p.getPointAt(curPos + (stepW / 2)) : curPos
-		
-			const searchx = myMidP.x; // The value you want to find
-			const searchy = myMidP.y; // The value you want to find
+			// get the gray value 
+			nearestGray = findNearestSegment(p, curPos).colorValue
+			artClone.children.slice(1).forEach(pa => {
+				pa.strokeColor = new paper.Color(nearestGray);
+			});
+
+			// Should probably be removed from the utility function
+			if (grayValues) {
+
+				let myMidP = curPos + stepW / 2 < p.length ? p.getPointAt(curPos + (stepW / 2)) : curPos
 			
-			const tolerance = 100; // Adjust the tolerance as needed
-			
-			// Initialize variables to store the nearest match and its distance
-			let nearestGray = null;
-			let minDistance = Number.MAX_VALUE;
-			
-			grayData.forEach(item => {
-				const diffX = Math.abs(item.x - searchx);
-				const diffY = Math.abs(item.y - searchy);
-				const distance = Math.sqrt(diffX * diffX + diffY * diffY);
+				const searchx = myMidP.x; // The value you want to find
+				const searchy = myMidP.y; // The value you want to find
 				
-				if (distance <= tolerance && distance < minDistance) {
-					nearestGray = item;
-					minDistance = distance;
-				}
-			});	
-
-			mappedArtHeight = h
-
-			if (nearestGray && demo > 4) {
-				gr = nearestGray['gray'] 
-
-				// Light art coloring
-				if (gr < 0.5) {
-					artClone.children.slice(1).forEach(pa => {
-						pa.strokeColor = lightC;
-					});
-				}		
+				const tolerance = 100; // Adjust the tolerance as needed
 				
-				// Light art coloring
-				if (gr < 0.2) {
-					artClone.children.slice(1).forEach(pa => {
-						pa.strokeColor = 'white';
-					});
-				}		
+				// Initialize variables to store the nearest match and its distance
+				let nearestGray = null;
+				let minDistance = Number.MAX_VALUE;
+				
+				grayData.forEach(item => {
+					const diffX = Math.abs(item.x - searchx);
+					const diffY = Math.abs(item.y - searchy);
+					const distance = Math.sqrt(diffX * diffX + diffY * diffY);
+					
+					if (distance <= tolerance && distance < minDistance) {
+						nearestGray = item;
+						minDistance = distance;
+					}
+				});	
 
-				// Background art coloring
-				if (gr > 0.999) {
-					artClone.children.slice(1).forEach(pa => {
-						pa.strokeColor = bgC;
-					});
+				if (nearestGray && demo > 4) {
+					gr = nearestGray['gray'] 
+					
+					// Light art coloring
+					if (gr < 0.5) {
+						artClone.children.slice(1).forEach(pa => {
+							pa.strokeColor = lightC;
+						});
+					}		
+					
+					// Light art coloring
+					if (gr < 0.2) {
+						artClone.children.slice(1).forEach(pa => {
+							pa.strokeColor = 'white';
+						});
+					}		
+					
+					// Background art coloring
+					if (gr > 0.999) {
+						artClone.children.slice(1).forEach(pa => {
+							pa.strokeColor = bgC;
+						});
+					}
+					// mappedArtHeight = Math.abs(h * Math.sin(p.length / (myp.x + .1)))
 				}
-				// mappedArtHeight = Math.abs(h * Math.sin(p.length / (myp.x + .1)))
 			}
-			
+
+		
+		
+			mappedArtHeight = h
 
 			n.length = mappedArtHeight
 			let myp2 = myp.add(n)			
@@ -435,6 +564,33 @@ let utl = {
 
 			seg.remove()
 			counter++
+		}
+
+		function findNearestSegment(path, offset) {
+			// Ensure the offset is within the path's length
+			offset = Math.min(offset, path.length);
+		
+			// Get the location on the path at the given offset
+			var location = path.getLocationAt(offset);
+		
+			if (!location || !location.curve) {
+				// In case the offset is not valid or there's no curve at the location
+				return null;
+			}
+		
+			// Get the point at this location
+			var pointAtOffset = location.point;
+		
+			// Get the segments connected to this curve
+			var previousSegment = location.curve.segment1;
+			var nextSegment = location.curve.segment2;
+		
+			// Calculate distances to the segments
+			var distanceToPrevSegment = pointAtOffset.getDistance(previousSegment.point);
+			var distanceToNextSegment = pointAtOffset.getDistance(nextSegment.point);
+		
+			// Determine the nearest segment
+			return distanceToPrevSegment < distanceToNextSegment ? previousSegment : nextSegment;
 		}
 
 		return result
@@ -1516,6 +1672,7 @@ getPointX: (ref, from, to, x, y, pad) => {
         var c = new Color(rgbarr[0] / 255, rgbarr[1] / 255, rgbarr[2] / 255);
         return c;
     },
+	
 
 
                                                                   
