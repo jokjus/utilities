@@ -1232,6 +1232,7 @@ getPointX: (ref, from, to, x, y, pad) => {
 	   pathCopy.remove()
 	   resG.pivot = resG.bounds.center
 	   
+
 	   return resG
 		
 	},
