@@ -3321,7 +3321,7 @@ getPointX: (ref, from, to, x, y, pad) => {
 			xLi = inpol.intersect(path, {trace:false})
 			if (xLi instanceof paper.CompoundPath) xLi = inpol.clone()
 			inpol.remove()
-	}
+		}
 		else {
 			xLi = inpol    
 		}
@@ -3353,10 +3353,10 @@ getPointX: (ref, from, to, x, y, pad) => {
 			smoothV = .1
 			
 			let smoothStart = path.divideAt(smoothV*path.length)
-			path.removeSegments(0,smoothStart.index)
+			if (smoothStart) path.removeSegments(0,smoothStart.index)
 			
 			let smoothEnd = path.divideAt((1-smoothV)*path.length)
-			path.removeSegments(smoothEnd.index)
+			if (smoothEnd) path.removeSegments(smoothEnd.index)
 		}
 		
 		smooth()
@@ -3899,7 +3899,12 @@ getPointX: (ref, from, to, x, y, pad) => {
 
 
 	// Round segments, optionally give array of segments as attribute
-	round: (path, r, sharps) => {
+	round: (path, r, sharps, debug=false) => {
+
+		if (path.segments.length == 0) {
+			console.log('Rounding: no segments at path')
+			return
+		}
 
 		if (sharps == undefined) {
 			sharps = []
@@ -3910,36 +3915,50 @@ getPointX: (ref, from, to, x, y, pad) => {
 
 		}
 
-		let ref = path.clone()
-
+		
+		if (sharps.length > 0) {
+			let ref = path.clone()
+			sharps.forEach(s => {
+				if (s.segment) {
+					utl.roundSegment(path, s.segment, r, sharps, ref, debug)
+				}
+			})
 	
-		sharps.forEach(s => {
-			utl.roundSegment(path, s.segment, r, sharps, ref)
-		})
-
-		ref.remove()
-
+			if (debug) {
+				ref.fillColor = null
+				ref.strokeColor = 'blue'
+				ref.opacity = .5
+	
+				utl.C(ref.segments[0].point, 4, 'green')
+			}
+			else {
+				ref.remove()
+			}
+		}
 	},
 
 	// Round one segment on a path. Adds additional points at radius distance from a segment.
-	roundSegment: (path, segment, radius, ints, referencePath) => {
-		var curPoint = segment.point 
+	roundSegment: (path, segment, radius, ints, referencePath, debug=false) => {
+		
+		var curPoint = segment.point
 
 		var curOff = segment.location.offset
 		var refCurOff = referencePath.getOffsetOf(segment.point)
 
+		if (debug) utl.C(segment.point, 2, 'red')
+
 		// get radius that is adjusted smaller if intersections are close to each other
 		//Check that segment and next or previous rounded segments radiuses don't overlap
-		var radiusBandF = utl.getAdjustedRadius(referencePath, refCurOff, radius, ints)
+		var radiusBandF = utl.getAdjustedRadius(referencePath, refCurOff, radius, ints, debug)
 
 		// get offset of the location where new point should be placed
 		var off2 = utl.offsetCalc(path, curOff + radiusBandF[1])
 		
 		// Get segments that are within rounding radius and should be removed
-		var segsAtRounding = utl.getSegmentsWithinRadius(path, segment, radiusBandF)
+		var segsAtRounding = utl.getSegmentsWithinRadius(path, segment, radiusBandF, debug)
 		// allSegmentsWithinRadius.push(...segsAtRounding)
 
-		// Add latter point and set incoming handle
+			// Add latter point and set incoming handle
 		var p2 = utl.addPointToCurve( path, off2 )
 		if (p2 != undefined) {
 			p2.handleIn.length = radiusBandF[1] / 2
@@ -3958,9 +3977,12 @@ getPointX: (ref, from, to, x, y, pad) => {
 		segment.remove()
 		if (segsAtRounding.length > 0) {
 			for (var s = 0; s < segsAtRounding.length; s++) {
+				if (debug) utl.C(segsAtRounding[s].point, 2, 'orange')								
 				segsAtRounding[s].remove()
 			}
 		}
+
+		return 
 
 	},
 
@@ -3997,14 +4019,14 @@ getPointX: (ref, from, to, x, y, pad) => {
 			// console.log('result: ' + result)
 
 			if (intDist[0] / 2 < radius && intOff != curOff && intOff != null && intDist[0] > 0.1) {
-				if (debug) {
-					var con = new paper.Path.Circle({
-						center: ints[i][1].point,
-						radius: 5,
-						name:'con',
-						fillColor: 'pink'
-					})
-				}
+				// if (debug) {
+				// 	var con = new paper.Path.Circle({
+				// 		center: ints[i][1].point,
+				// 		radius: 5,
+				// 		name:'con',
+				// 		fillColor: 'pink'
+				// 	})
+				// }
 
 				var adj = intDist[0]/1000
 
@@ -4017,11 +4039,11 @@ getPointX: (ref, from, to, x, y, pad) => {
 				
 				if (intDist[1]) {
 					if (debug) {
-						var zer = new paper.Path.Circle({
-							center: ints[i][1].point,
-							radius: 20,
-							fillColor:'pink'
-						})
+						// var zer = new paper.Path.Circle({
+						// 	center: ints[i][1].point,
+						// 	radius: 20,
+						// 	fillColor:'pink'
+						// })
 					}
 					if (curOff > intOff) {
 						result[1] = (intDist[0] / 2) - adj // if intersection points are too close to each other, default radius to half their distance
@@ -4078,31 +4100,36 @@ getPointX: (ref, from, to, x, y, pad) => {
 		if (debug) {
 			var con = new paper.Path.Circle({
 				center: path.getPointAt(off1),
-				radius: 3,
-				fillColor: 'purple'
+				radius: 2,
+				fillColor: 'yellow',
+				opacity: .5
 			})
 			var con = new paper.Path.Circle({
 				center: path.getPointAt(off2),
-				radius: 3,
-				fillColor: 'cyan'
+				radius: 2,
+				fillColor: 'blue',
+				opacity:.5
 			})
 		}
 
-		for (s = 0; s < path.segments.length; s++) {
-			var myS = path.segments[s]
-			var sOff = myS.location.offset
-			
-
-			if (sOff >= off1 && sOff <= off2) {
-				result.push(myS)
-			} 
-			if (off1 > off2) { // radius over zeropoint
-				if (sOff >= nonAdjustedOff1 && sOff <= nonAdjustedOff2) {
-					result.push(myS)
+		for (var s = 0; s < path.segments.length; s++) {
+			var myS = path.segments[s];
+			var sOff = myS.location.offset;
+		
+			// Check if the segment's offset falls within the range considering loop-over
+			if (off1 <= off2) {
+				// Normal scenario: The range does not loop over the path's end
+				if (sOff >= off1 && sOff <= off2) {
+					result.push(myS);
+				}
+			} else {
+				// Loop-over scenario: The range crosses the path's end
+				if (sOff >= off1 || sOff <= off2) {
+					result.push(myS);
 				}
 			}
 		}
-
+		
 		return result
 	}
 
