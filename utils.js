@@ -16,6 +16,8 @@ let utl = {
 	R: (a) => Math.random() * a,
 
 	F: (a) => Math.floor(a),	
+
+	Rr: (hi,lo) => Math.random() * (hi - lo) + lo,
                                                      
     isEven: (n) => {
         return n % 2 === 0;
@@ -438,6 +440,137 @@ let utl = {
 		return result
 	},
 
+	//Maps paths (grouped or not) to quadrilaterals with curved sides
+mapArtX: (from, to, freq, pad, delOrig = false) => {
+	let ref = new paper.Rectangle(from.bounds);
+	ref = ref.scale(pad, pad);
+
+	let result = new paper.Group();
+
+	function processItem(item, parentGroup) {
+		if (item instanceof paper.CompoundPath) {
+			let compound = new paper.CompoundPath({
+				strokeColor: item.strokeColor,
+				strokeWidth: item.strokeWidth,
+				fillColor: item.fillColor,
+				parent: parentGroup
+			});
+
+			item.children.forEach(child => {
+				processPath(child, compound);
+			});
+		} else if (item instanceof paper.Path) {
+			processPath(item, parentGroup);
+		} else if (item instanceof paper.Group) {
+			let newGroup = new paper.Group({ parent: parentGroup });
+			item.children.forEach(child => {
+				processItem(child, newGroup);
+			});
+		}
+	}
+
+	function processPath(path, parent) {
+		let resPath = new paper.Path({
+			strokeColor: path.strokeColor,
+			strokeWidth: path.strokeWidth,
+			fillColor: path.fillColor
+		});
+
+		resPath.closed = path.closed;
+
+		let pCount = Math.floor(path.length / freq);
+		let segLe = path.length / pCount
+
+		for (let i = 0; i < pCount; i++) {
+			
+			let point = path.getPointAt(i * segLe);		
+			let newPoint = utl.getPointX(ref, path, to, point.x, point.y, pad)
+
+			if (newPoint == undefined) console.log('UNDEFINED')
+			
+			resPath.add(newPoint);
+		}
+
+		//resPath.simplify(.001)
+		
+		
+
+		if (parent instanceof paper.CompoundPath) {
+			parent.addChild(resPath);
+		} else {
+			parent.addChild(resPath);
+		}
+	}
+
+	processItem(from, result);
+
+	if (delOrig) {from.remove(); to.remove();}
+
+	return result;
+},
+
+getPointX: (ref, from, to, x, y, pad) => {
+	if (x > ref.width) x = ref.width
+	if (y > ref.height) y = ref.height
+
+	xOff = (x - ref.left) / ref.width
+	yOff = (y - ref.top) / ref.height
+	temp = new paper.Group()
+
+	const pa = (s1, s2) => new paper.Path({segments: [s1, s2], parent:temp})
+	const paa = (segs) => new paper.Path({segments: segs, parent: temp})
+	
+	let se = to.segments 
+
+	// Divide path into separate side paths by determining that smooth segs are in between corners and corners are not smooth
+
+	function divideToSides(segs) {
+		let sides = [];
+		let side = [segs[0]];
+
+		// Iterate over the array
+		for (let i = 1; i < se.length; i++) {
+			side.push(se[i]); // Add the current point to the current side
+
+			// If it's a corner or the end of the array
+			if (!se[i].isSmooth() || i === se.length - 1) {
+				// Check if the current side is valid
+				if (side.length > 1 || (side.length === 1 && i === se.length - 1)) {
+					// If we're at the end, close the loop
+					if (i === se.length - 1 && se[i].isSmooth()) {
+						side.push(segs[0]);
+					}
+					sides.push(side); // Add the current side to sides
+					if (i === se.length - 1 && !se[i].isSmooth()) {
+						sides.push([se[i], se[0]])
+					}
+					side = !se[i].isSmooth() ? [se[i]] : []; // Start a new side if it's a corner
+				}
+			}
+		}
+
+		return sides
+	}
+
+	let sides = divideToSides(se)	
+	let side1 = paa(sides[0])
+	let side2 = paa(sides[1])
+	let side3 = paa(sides[2])
+	side3.reverse()
+	let side4 = paa(sides[3])
+	side4.reverse()
+
+	let int = new paper.Path({parent:temp})
+	int.interpolate(side1, side3, yOff)
+	int.firstSegment.point = side4.getPointAt(side4.length * yOff)
+	int.lastSegment.point = side2.getPointAt(side2.length * yOff)
+	let res = int.getPointAt(xOff*int.length)
+	
+	temp.remove()
+ 
+	return res
+},
+
 
 	
 	                                                                                                  
@@ -452,7 +585,7 @@ let utl = {
                                                                                                   
                                                                                                   
 
-	occlusionX: (item, cookie=false, origColors=false, smallLines=0.1, verbose=true, callback) => {
+	occlusionX: (item, cookie=false, origColors=false, smallLines=0.1, verbose=true, callback=undefined) => {
 		utl.ungroup(item)
 		let res = new paper.Group()
 
@@ -518,9 +651,9 @@ let utl = {
 
 		function loop() {
 
-			el = origs[x]
+			let el = origs[x]
 
-			if (verbose && x % 10 == 0) console.log('hatch filling ' + (len - x) + '/' + len)
+			if (verbose && x % 10 == 0) console.log('occlusion ' + (len - x) + '/' + len)
 			
 			// use variables instead of accessing properties for possible speed advantage
 			let fillC, strokeC
@@ -529,21 +662,21 @@ let utl = {
 
 			if (el.fillColor != null) fillC = el.fillColor.clone()
 			if (el.strokeColor != null) strokeC = el.strokeColor.clone()
-			origColor = strokeC == null ? fillC : strokeC
+			let origColor = strokeC == null ? fillC : strokeC
 			
-			strokeW = el.strokeWidth
-			closed = el.closed
+			let strokeW = el.strokeWidth
+			let closed = el.closed
 			
-			rect1 = el.bounds
-			ints = []
+			let rect1 = el.bounds
+			let ints = []
 			
 			let flat
 		
 			// Check for elements above the current element
 			for (let k=x+1;k<len;k++) {
 
-				testEl = origs[k]			
-				rect2 = testEl.bounds
+				let testEl = origs[k]			
+				let rect2 = testEl.bounds
 
 				function checkOverlap(r1, r2) {
 					return !(r1.right < r2.left || r1.bottom < r2.top || r1.left > r2.right || r1.top > r2.bottom);				
@@ -564,7 +697,7 @@ let utl = {
 					mask = mask.unite(int, {insert: false, trace: false})    
 				})
 
-				traceMethod = el.closed || el.type != undefined ? true : false
+				let traceMethod = el.closed || el.type != undefined ? true : false
 								
 				// Open current path if we don't want cookie cutter type results
 				if (!cookie && el.closed) {
@@ -594,20 +727,18 @@ let utl = {
 				flat.strokeWidth = opt.strokeWidth				
 			}
 			
-			flat.parent = res
-		
+			flat.parent = res			
 			x--
 
 			// Check if the loop should continue
 			if (x >= 0) {
 
-					loop()
+					return loop()
 
 			} else {
 
 				// Clean up here
 				item.remove()				
-
 				res.reverseChildren()
 				
 				dels = []
@@ -626,19 +757,20 @@ let utl = {
 						// path.strokeWidth = 1
 					})
 				}
-				
 				// Set color attributes
 				if (!origColors) {
 					res.strokeColor = 'black'
 					res.fillColor = null
 					res.strokeWidth = 1
 				}
-
-				callback(res)
+				if (callback) callback(res)
+				if (callback==undefined) {
+					return res
+				}
 			}
 		}
 
-		loop()
+		return loop()
 	},
 
 
@@ -949,6 +1081,7 @@ let utl = {
 		for (var x = 0; x < innerLayers.length; x++) {
 			var innerOrig = innerLayers[x]
 			var mask = clipMask.clone()
+			mask.clipMask = false
 			let origFill = innerOrig.fillColor
 			let origStrokeColor = innerOrig.strokeColor
 			let origStrokeWidth = innerOrig.strokeWidth
@@ -987,6 +1120,12 @@ let utl = {
 		clipMask.remove()
 		clipMaskOrig.remove()
 		clipGroup.clipped = false
+
+		// clean up stray points
+		for (let i=clipGroup.children.length;i>0;i--){
+			let curEl = clipGroup.children[i]
+			if (curEl != undefined && curEl.length == 0) curEl.remove()
+		}
 
 	},
 
@@ -1704,7 +1843,7 @@ let utl = {
 	},
 	
 	//torus like polygon
-	polygon: (sides=6, rad=20, thickness=5, color='black', bgColor=null) => {
+	polygon: (sides=6, rad=20, thickness=5, color='black', bgColor=null, pad=0) => {
 
 		let p1 = new paper.Path.RegularPolygon({
 			center: (0,0),
@@ -1729,6 +1868,7 @@ let utl = {
 
 		if (bgColor) {
 			bgRe = new paper.Path.Rectangle(poly.bounds)
+			bgRe.scale(1+pad, 1+pad)
 			bgRe.fillColor = bgColor
 			res.addChild( bgRe)
 		} 
@@ -1800,32 +1940,32 @@ let utl = {
 	},
 
 	blob: (length, rad, dns, smoothness, opt) => {
-		checkA = (a1, a2, tole=40) => Math.abs(a1 - a2) < tole
-		P = (x,y) => new paper.Point(x,y)
-		pa = (segs) => new paper.Path({segments: segs})
-		V = (a,l) => new paper.Point({angle:a, length:l})
+		let checkA = (a1, a2, tole=40) => Math.abs(a1 - a2) < tole
+		let P = (x,y) => new paper.Point(x,y)
+		let pa = (segs) => new paper.Path({segments: segs})
+		let V = (a,l) => new paper.Point({angle:a, length:l})
 		
-		l = pa([P(0,0), P(length,0)])
-		l1 = l.segments[0].point
-		l2 = l.segments[1].point
+		let l = pa([P(0,0), P(length,0)])
+		let l1 = l.segments[0].point
+		let l2 = l.segments[1].point
 		
-		ang = l1.subtract(l2).angle
+		let ang = l1.subtract(l2).angle
 		ang = ang < 0 ? 360-Math.abs(ang) : ang
 		
-		points = []
+		let points = []
 		
-		for (let i=0;i<n;i++) {
+		for (let i=0;i<dns;i++) {
 			
-			myan = 360/n*i
+			let myan = 360/dns*i
 			
 			if (!checkA(myan, ang)) {    
-				let vector = V(myan, R(ra / 2) + ra / 2);
+				let vector = V(myan, utl.R(rad / 2) + rad / 2);
 				let point = l.segments[1].point.add(vector);
 				points.push(point);
 			}
 		
 			if (!checkA(myan, ang - 180)) {
-				let vector = V(myan, R(ra / 2) + ra / 2);
+				let vector = V(myan, utl.R(rad / 2) + rad / 2);
 				let point = l.segments[0].point.add(vector);
 				points.push(point);
 			}
@@ -1854,7 +1994,7 @@ let utl = {
 		});
 		
 		
-		mypa = new paper.Path({
+		let mypa = new paper.Path({
 			segments: uniquePoints,
 			closed: true,
 			...opt
@@ -1869,15 +2009,17 @@ let utl = {
 	// Polygon shaped radial lines with random line colors
 	polyKhronos: ({
 		center,
-		radius,
-		sides,
-		lineFreq,
-		width,
-		colors,
-		weights,
+		radius = 100,
+		sides = 6,
+		lineFreq= 5,
+		width = 30,
+		colors = ['red', 'blue'],
+		colorWeights = [5,5],
+		strokeWidth = 1,
 		mask = false,
 		maskOff = 0 // Assuming a default value for maskOff
 	}) => {
+		let mm = 2.854
 		let res = new paper.Group();
 		let po = (p, r, s) => new paper.Path.RegularPolygon({ center: p, radius: r, sides: s });
 
@@ -1906,7 +2048,7 @@ let utl = {
 		}
 
 		for (let i = 0; i < cnt; i++) {
-			let col = weightedR(colors, weights);
+			let col = utl.weightedR(colors, colorWeights);
 			let l = pl1.getLocationAt(i * step);
 			let n = l.normal;
 			let p = l.point;
@@ -1918,14 +2060,13 @@ let utl = {
 				from: p,
 				to: p2,
 				strokeColor: col,
-				strokeWidth: 1.8 * mm, // Ensure 'mm' is defined somewhere or provide a default value
+				strokeWidth: strokeWidth * mm, // Ensure 'mm' is defined somewhere or provide a default value
 				parent: res,
 				strokeCap: 'round'
 			});
 		}
 
-		let rem = [pl1, pl2, pl3, pl4];
-		rem.forEach(r => r.remove());
+		[pl1, pl2, pl3, pl4].forEach(r => r.remove());
 
 		return res;
 	},
@@ -2104,9 +2245,19 @@ let utl = {
 	// const yDistortF = (x) => x * 10 * Math.sin(x)
 
 	//There should be equal number of pieces and weights
-	unevenGrid: (gDim ={x:10,y:10}, gSize=20, pieces=[{x:1,y:1},{x:1,y:2},{x:2,y:1},{x:2,y:2}], weights=[5,5,5,5], xDistortF, yDistortF, mask) => {
+	unevenGrid: (returnType = 'obj', gDim ={x:10,y:10}, gSize=20, pieces=[{x:1,y:1},{x:1,y:2},{x:2,y:1},{x:2,y:2}], weights=[5,5,5,5], xDistortF, yDistortF, mask) => {
 		
-		return utl.genPieces(gDim, utl.genGridPoints(gDim, gSize, xDistortF, yDistortF), pieces, weights, mask)
+		let genGri = utl.genPieces(gDim, utl.genGridPoints(gDim, gSize, xDistortF, yDistortF), pieces, weights, mask)
+
+		let resG = new paper.Group()
+		genGri.forEach(p => p.path.parent = resG )
+		
+		if (returnType == 'obj') {
+			return genGri
+		}
+		if (returnType == 'geometry') {
+			return resG
+		}
 
 	},
 
@@ -2862,45 +3013,55 @@ let utl = {
 //                                                88           
 //                                                88           
 
-	warp: (src, tgt, resolution) => {
-		pa = (segs) => new paper.Path({segments: segs})
+	warp: (src, tgt, resolution, delSrc = false) => {
 
-		utl.resample(tgt, 20)
+		pa = (segs) => new paper.Path({ segments: segs })
 
 		let sides = utl.getAltSides(tgt)
 		let top = pa(sides.top)
 		let btm = pa(sides.btm)
 		let left = pa(sides.left)
 		let right = pa(sides.right)
-		
+
 		utl.resample(top, 100)
 		utl.resample(btm, 100)
 		btm.reverse()
 		left.reverse()
-		
+
 		bo = src.bounds
-		
-		if(src.hasChildren()) {
-			src.children.forEach(ch => processOne(ch))
+
+		processChildren(src)
+
+		function processChildren(item) {
+			if (item.hasChildren()) {
+				item.children.forEach(child => processChildren(child))
+			} else {
+				processOne(item)
+			}
 		}
-		else {
-			processOne(src)
-		}
-		
+
 		function processOne(item) {
-			let resCount = Math.floor(item.length/resolution)
-			
-			utl.resample(item,resCount)
-			
-			item.segments.forEach(s=> {
+			let resCount = Math.floor(item.length / resolution)
+
+			utl.resample(item, resCount)
+
+			item.segments.forEach(s => {
 				myX = (s.point.x - bo.left) / bo.width
 				myY = (s.point.y - bo.top) / bo.height
-				pp = utl.getP(top,btm,left,right, myX, myY, tgt)
+				pp = utl.getP(top, btm, left, right, myX, myY, tgt)
 				s.point.x = pp.x
 				s.point.y = pp.y
 			})
 		}
+
+		top.remove()
+		btm.remove()
+		left.remove()
+		right.remove()
+		if (delSrc) src.remove()
+		return src
 	},
+
 
 	getAltSides: (tgt) => {
 		tb = tgt.bounds
@@ -3292,7 +3453,7 @@ let utl = {
 				maxDistance: ib.width / count,
 				tries:10,
 				distanceFunction: function (p) {
-					return 1 - vdist.getValue(p[0], p[1], ib.width, ib.height); // value between 0 and 1
+					return 1 - utl.getValue(p[0], p[1], ib.width, ib.height); // value between 0 and 1
 				}
 			});
 			
@@ -3501,5 +3662,290 @@ let utl = {
     },
 
 
+                                             
+//  ad88888ba   88  88                          
+// d8"     "8b  88  ""                          
+// Y8,          88                              
+// `Y8aaaaa,    88  88   ,adPPYba,   ,adPPYba,  
+//   `"""""8b,  88  88  a8"     ""  a8P_____88  
+//         `8b  88  88  8b          8PP"""""""  
+// Y8a     a8P  88  88  "8a,   ,aa  "8b,   ,aa  
+//  "Y88888P"   88  88   `"Ybbd8"'   `"Ybbd8"'  
+                                             
+                                             
+	splitUsingPath: (target, path, debug=false) => {
+		const paths = [path];
+		const targets = [target];
+		
+		const originalTarget = target.clone({ insert: false })
+		const intersections = target.getIntersections(path)
+
+		intersections.forEach(location => {
+		const newTarget = target.splitAt(location)
+		const isNew = newTarget !== target
+		
+		if (isNew) targets.push(newTarget)
+		
+		paths.forEach(path => {
+			const offset = path.getOffsetOf(location.point)
+			const pathLocation = path.getLocationAt(offset)
+
+			if (pathLocation) {
+					paths.push(path.splitAt(pathLocation))
+			}
+		})
+		})
+
+		const innerPath = paths.find(p => 
+			originalTarget.contains(p.bounds.center))
+
+		paths
+			.filter(path => path !== innerPath)
+			.forEach(item => item.remove())
+
+
+		targets.forEach((target, i) => {
+			const isFirst = i === 0
+			const innerPathCopy = isFirst ? innerPath : innerPath.clone()
+
+			if (innerPathCopy.getPointAt(0).isClose(target.getPointAt(target.length), 0.1)) innerPathCopy.reverse()
+
+			target.join(innerPathCopy, innerPathCopy.length)
+			target.closed = true
+
+			if (debug) {
+				let p  = new PointText({
+					point: target.bounds.center,
+					content: target.clockwise,
+					fontSize: 10,
+					fontColor: 'black',
+					parent: debug
+				})
+			}
+		})
+
+		return targets
+	},
+
+
+                                                                
+// 88888888ba                                                  88  
+// 88      "8b                                                 88  
+// 88      ,8P                                                 88  
+// 88aaaaaa8P'  ,adPPYba,   88       88  8b,dPPYba,    ,adPPYb,88  
+// 88""""88'   a8"     "8a  88       88  88P'   `"8a  a8"    `Y88  
+// 88    `8b   8b       d8  88       88  88       88  8b       88  
+// 88     `8b  "8a,   ,a8"  "8a,   ,a88  88       88  "8a,   ,d88  
+// 88      `8b  `"YbbdP"'    `"YbbdP'Y8  88       88   `"8bbdP"Y8  
+                                                                
+
+
+	// Round segments, optionally give array of segments as attribute
+	round: (path, r, sharps) => {
+
+		if (sharps == undefined) {
+			sharps = []
+
+			path.segments.forEach(s => {
+				if (!s.isSmooth()) sharps.push(s.location)
+			})
+
+		}
+
+		let ref = path.clone()
+
+	
+		sharps.forEach(s => {
+			utl.roundSegment(path, s.segment, r, sharps, ref)
+		})
+
+		ref.remove()
+
+	},
+
+	// Round one segment on a path. Adds additional points at radius distance from a segment.
+	roundSegment: (path, segment, radius, ints, referencePath) => {
+		var curPoint = segment.point 
+
+		var curOff = segment.location.offset
+		var refCurOff = referencePath.getOffsetOf(segment.point)
+
+		// get radius that is adjusted smaller if intersections are close to each other
+		//Check that segment and next or previous rounded segments radiuses don't overlap
+		var radiusBandF = utl.getAdjustedRadius(referencePath, refCurOff, radius, ints)
+
+		// get offset of the location where new point should be placed
+		var off2 = utl.offsetCalc(path, curOff + radiusBandF[1])
+		
+		// Get segments that are within rounding radius and should be removed
+		var segsAtRounding = utl.getSegmentsWithinRadius(path, segment, radiusBandF)
+		// allSegmentsWithinRadius.push(...segsAtRounding)
+
+		// Add latter point and set incoming handle
+		var p2 = utl.addPointToCurve( path, off2 )
+		if (p2 != undefined) {
+			p2.handleIn.length = radiusBandF[1] / 2
+			if (p2.handleIn.angle == undefined) p2.handleIn.angle = path.getLocationAt(p2).location.tangent.angle
+		}
+
+		// get offset of the location where latter point should be placed
+		// have to get offset again since adding point to curve changes path structure
+		var off1 = utl.offsetCalc(path, path.getOffsetOf(curPoint) - radiusBandF[0]) 
+		
+		// Add former point and set outgoing handle
+		var p1 = utl.addPointToCurve( path, off1 )
+		if (p1 != undefined) p1.handleOut.length = radiusBandF[0] / 2
+
+		// Finish by removing all segments within rounding radius including the segment to be rounded to begin with	
+		segment.remove()
+		if (segsAtRounding.length > 0) {
+			for (var s = 0; s < segsAtRounding.length; s++) {
+				segsAtRounding[s].remove()
+			}
+		}
+
+	},
+
+	//Check that segment and next or previous rounded segments radiuses don't overlap
+	getAdjustedRadius: (path, curOff, radius, ints, debug=false) => {
+		
+		const getDifference = (a, b) => Math.abs(a - b)
+
+
+		var result = [radius, radius]
+
+		for (var i = 0; i < ints.length; i++) {
+			// var intOff = path.getNearestLocation(ints[i][1].point).offset // get offset of an intersection point
+			var intOff = path.getOffsetOf(ints[i].point) // get offset of an intersection point
+
+			var intDist = getRealDistance(intOff, curOff, path.length) // get distance between point being rounded and another intersection
+
+			function getRealDistance(a, b, full) {
+				var distResult = [ getDifference(intOff, curOff), false ] // difference between points, false as default indicator that points are not across zero point
+				var half = full / 2
+
+				if (distResult[0] > half) { // if distance between points is greater than half the total length of a path, then shortest distance between them must cross the zero point
+					
+					a = (a > half) ? full - a : a
+					b = (b > half) ? full - b : b
+
+					var dist = (a + b > half) ? full - (a + b) : a + b
+					distResult = [ dist, true ]
+				}
+
+				return distResult
+			}
+
+			// console.log('result: ' + result)
+
+			if (intDist[0] / 2 < radius && intOff != curOff && intOff != null && intDist[0] > 0.1) {
+				if (debug) {
+					var con = new paper.Path.Circle({
+						center: ints[i][1].point,
+						radius: 5,
+						name:'con',
+						fillColor: 'pink'
+					})
+				}
+
+				var adj = intDist[0]/1000
+
+				if (curOff > intOff) {
+					result[0] = (intDist[0] / 2) - adj // if intersection points are too close to each other, default radius to half their distance
+				}
+				if (curOff < intOff) {
+					result[1] = (intDist[0] / 2) - adj
+				}
+				
+				if (intDist[1]) {
+					if (debug) {
+						var zer = new paper.Path.Circle({
+							center: ints[i][1].point,
+							radius: 20,
+							fillColor:'pink'
+						})
+					}
+					if (curOff > intOff) {
+						result[1] = (intDist[0] / 2) - adj // if intersection points are too close to each other, default radius to half their distance
+					}
+					if (curOff < intOff) {
+						result[0] = (intDist[0] / 2) - adj
+					}
+				}
+			}
+
+		}
+
+		return result
+	},
+
+
+
+	// Add a new segment to a curve so that appearance of the curve is not altered
+	addPointToCurve: (path, offset) => {
+		var p = path.getPointAt(offset)
+		path.splitAt(path.getLocationAt(offset))
+		path.join(path)
+		
+		if (path.getLocationOf(p) != undefined) {
+			var result = path.getLocationOf(p).segment
+			return result
+		}
+		else { 
+			return undefined
+		}
+	},
+
+	// Calculate offset taking into account looping over path end
+	offsetCalc: (path, off) => {
+		var result = off
+
+		if (path.length < off) result = off - path.length
+
+		if (off < 0) result = path.length - Math.abs(off)
+			
+		return result
+	},
+
+	// Get segments of a path that lie between two offset values
+	getSegmentsWithinRadius: (path, seg, radiusBandF, debug=false) => {
+		var result = []
+
+		var myOff = seg.location.offset
+		var nonAdjustedOff1 = myOff - radiusBandF[0]
+		var off1 = utl.offsetCalc(path, nonAdjustedOff1)
+		var nonAdjustedOff2 = myOff + radiusBandF[1]
+		var off2 = utl.offsetCalc(path, nonAdjustedOff2)
+
+		if (debug) {
+			var con = new paper.Path.Circle({
+				center: path.getPointAt(off1),
+				radius: 3,
+				fillColor: 'purple'
+			})
+			var con = new paper.Path.Circle({
+				center: path.getPointAt(off2),
+				radius: 3,
+				fillColor: 'cyan'
+			})
+		}
+
+		for (s = 0; s < path.segments.length; s++) {
+			var myS = path.segments[s]
+			var sOff = myS.location.offset
+			
+
+			if (sOff >= off1 && sOff <= off2) {
+				result.push(myS)
+			} 
+			if (off1 > off2) { // radius over zeropoint
+				if (sOff >= nonAdjustedOff1 && sOff <= nonAdjustedOff2) {
+					result.push(myS)
+				}
+			}
+		}
+
+		return result
+	}
 
 };
