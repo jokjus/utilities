@@ -129,6 +129,28 @@ let utl = {
 	// 88    `888'    88  88,    ,88    88,    88       88  
 	// 88     `8'     88  `"8bbdP"Y8    "Y888  88       88  
 	
+	PR: (seed=9238923) =>  {
+		const a = 1664525;
+		const c = 1013904223;
+		const m = Math.pow(2, 32);
+		const value = (a * seed + c) % m;
+		return value / m;
+	},
+
+	PRG: class LinearCongruentialGenerator {
+		constructor(seed) {
+			this.a = 1664525; // Multiplier
+			this.c = 1013904223; // Increment
+			this.m = Math.pow(2, 32); // Modulus
+			this.seed = seed;
+		}
+	
+		next() {
+			this.seed = (this.a * this.seed + this.c) % this.m;
+			return this.seed / this.m;
+		}
+	},
+
 	R: (a) => Math.random() * a,
 
 	F: (a) => Math.floor(a),	
@@ -2229,6 +2251,35 @@ getPointX: (ref, from, to, x, y, pad) => {
 		return res;
 	},
 
+	asterisk: (p, cnt, rad, w, opt, bgColor) => {
+		const r = (c, sz, opt) => new paper.Path.Rectangle({point: c.subtract(new paper.Point(sz[0]/2, sz[1]/2)), size:sz, ...opt})
+		
+		let fig = new paper.Path()
+		for (let i = 0; i < cnt; i++) {
+			let el = r(p, [w, rad*2]).rotate(180 / cnt * i);
+			fig = fig.unite(el, {insert: false})
+			el.remove();
+		}
+		
+		
+		
+		let ast = new paper.Path({segments: fig.segments, ...opt})
+		
+		let res = new paper.Group()
+	
+			if (bgColor) {
+				bgRe = new paper.Path.Rectangle(ast.bounds)
+				bgRe.scale(1.1)
+				bgRe.fillColor = bgColor
+				res.addChild( bgRe)
+			} 
+			
+			res.addChild(ast)
+		
+		
+		return res
+	},
+
 
 
 	                                               
@@ -3588,7 +3639,7 @@ getPointX: (ref, from, to, x, y, pad) => {
 	},
 
 	triangulate: (item, count, power, pivotType = 1, ungroup = false, poisson = false) => {
-		console.log('distorting: triangulate')
+		console.log('Distortion: triangulate')
 		let ib = item.bounds
 		let resGroup = new paper.Group()
 
@@ -3636,7 +3687,10 @@ getPointX: (ref, from, to, x, y, pad) => {
 		let co = delaunay.coords
 
 		forEachTriangle(points, delaunay, drawTri)
-		if (ungroup) utl.ungroup(resGroup);
+		if (ungroup) {
+			console.log('Distortion: ungrouping & flattening')
+			utl.ungroup(resGroup)
+		}
 
 		item.remove()
 
@@ -4131,6 +4185,35 @@ getPointX: (ref, from, to, x, y, pad) => {
 		}
 		
 		return result
+	},
+
+	                                                          
+// 888888888888                              88              
+//      88                                   88              
+//      88                                   88              
+//      88  8b,dPPYba,   ,adPPYba,   ,adPPYb,88   ,adPPYba,  
+//      88  88P'   "Y8  a8P_____88  a8"    `Y88  a8P_____88  
+//      88  88          8PP"""""""  8b       88  8PP"""""""  
+//      88  88          "8b,   ,aa  "8a,   ,d88  "8b,   ,aa  
+//      88  88           `"Ybbd8"'   `"8bbdP"Y8   `"Ybbd8"'  
+      
+	tree: (path, dep, esc, cols) =>{
+		const getD = (pa, esc, d) => pa.add(pa.subtract(esc).normalize().multiply(d));
+		const isVis = (pa, esc, cu) => !pa.contains(getD(cu.getPointAtTime(.5), esc, -5))
+		sides = [{side:path, dist:0}]
+		
+		each(path.curves, cu => {
+			if (isVis(path, esc, cu)) {
+				lo = cu.getLocationAtTime(.5)
+				fill = cols[lo.normal.quadrant-1]
+				di = lo.point.getDistance(esc)
+				sides.push({side: p([cu.point1, getD(cu.point1,esc,-dep), getD(cu.point2,esc,-dep), cu.point2], {fillColor:fill}), dist:di})
+			}
+		})
+		
+		sides.sort(function(a, b) { return b.dist - a.dist});
+		each(sides, side => side.side.bringToFront() )
 	}
+                                                          
 
 };
