@@ -119,6 +119,7 @@ let utl = {
 		"neon green fluo": "#b8d483",	
 	},
 	
+	each: (array, callback) => { array.forEach(callback)},
 	
 	// 88b           d88                       88           
 	// 888b         d888                ,d     88           
@@ -3754,6 +3755,23 @@ getPointX: (ref, from, to, x, y, pad) => {
 		return Math.max(0, Math.min(1, value));
 	},
 
+	jag: (path, wi, he) =>{
+		newSegs = []
+		utl.each(path.curves, cu => {
+			let cule = cu.segment2.location.offset-cu.segment1.location.offset
+			let stps = Math.floor(cule / wi)
+			if (stps%2==0) stps++
+			let stp = cule/stps
+			let n = cu.getNormalAtTime(.5)
+			for(i=0;i<stps;i++) {
+				let po = cu.getLocationAt(stp*i).point
+				if (i%2==0 && i!=0) newSegs.push(po.add(n*he))
+				newSegs.push(po)
+				if (i%2!=0 && i!=stps) newSegs.push(po.add(n*he))
+			}
+		})
+		path.segments = newSegs
+	},
 	                                                         
 // 88888888ba                          88  88               
 // 88      "8b                         88  ""               
@@ -4202,7 +4220,7 @@ getPointX: (ref, from, to, x, y, pad) => {
 		const isVis = (pa, esc, cu) => !pa.contains(getD(cu.getPointAtTime(.5), esc, -5))
 		sides = [{side:path, dist:0}]
 		
-		each(path.curves, cu => {
+		utl.each(path.curves, cu => {
 			if (isVis(path, esc, cu)) {
 				lo = cu.getLocationAtTime(.5)
 				fill = cols[lo.normal.quadrant-1]
@@ -4212,7 +4230,7 @@ getPointX: (ref, from, to, x, y, pad) => {
 		})
 		
 		sides.sort(function(a, b) { return b.dist - a.dist});
-		each(sides, side => side.side.bringToFront() )
+		utl.each(sides, side => side.side.bringToFront() )
 	}
                                                           
 
