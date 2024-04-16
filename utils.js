@@ -3756,9 +3756,10 @@ getPointX: (ref, from, to, x, y, pad) => {
 	},
 
 	jag: (path, wi, he) =>{
-		newSegs = []
+		let newSegs = []
 		utl.each(path.curves, cu => {
-			let cule = cu.segment2.location.offset-cu.segment1.location.offset
+			let seg2off = cu.isLast() ? path.length : cu.segment2.location.offset
+			let cule = seg2off - cu.segment1.location.offset
 			let stps = Math.floor(cule / wi)
 			if (stps%2==0) stps++
 			let stp = cule/stps
