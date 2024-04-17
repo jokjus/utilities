@@ -344,6 +344,14 @@ let utl = {
         return se;
     },
 
+	// Returns as an array the two points on a circle that are tangential to an external point
+	tngts: (cc, rad, po) => {
+        let th = Math.acos(rad/cc.getDistance(p))
+        let d = Math.atan2(po.y-cc.y, po.x-cc.x) 
+        let d1=d+th, d2=d-th
+        return [new paper.Point(cc.x+rad*Math.cos(d1),cc.y+rad*Math.sin(d1)), new paper. Point(cc.x+rad*Math.cos(d2), cc.y+rad*Math.sin(d2))]
+    },
+
 	                                                             
 // 88888888ba               88                                  
 // 88      "8b              ""                ,d                
