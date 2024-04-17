@@ -344,6 +344,14 @@ let utl = {
         return se;
     },
 
+	// Returns as an array the two points on a circle that are tangential to an external point
+	tngts: (cc, rad, po) => {
+        let th = Math.acos(rad/cc.getDistance(p))
+        let d = Math.atan2(po.y-cc.y, po.x-cc.x) 
+        let d1=d+th, d2=d-th
+        return [new paper.Point(cc.x+rad*Math.cos(d1),cc.y+rad*Math.sin(d1)), new paper. Point(cc.x+rad*Math.cos(d2), cc.y+rad*Math.sin(d2))]
+    },
+
 	                                                             
 // 88888888ba               88                                  
 // 88      "8b              ""                ,d                
@@ -3756,22 +3764,27 @@ getPointX: (ref, from, to, x, y, pad) => {
 	},
 
 	jag: (path, wi, he) =>{
-		let newSegs = []
-		utl.each(path.curves, cu => {
-			let seg2off = cu.isLast() ? path.length : cu.segment2.location.offset
-			let cule = seg2off - cu.segment1.location.offset
-			let stps = Math.floor(cule / wi)
-			if (stps%2==0) stps++
-			let stp = cule/stps
-			let n = cu.getNormalAtTime(.5)
-			for(i=0;i<stps;i++) {
-				let po = cu.getLocationAt(stp*i).point
-				if (i%2==0 && i!=0) newSegs.push(po.add(n*he))
-				newSegs.push(po)
-				if (i%2!=0 && i!=stps) newSegs.push(po.add(n*he))
-			}
-		})
-		path.segments = newSegs
+		let iterate = (item) => {
+			let newSegs = []
+			
+			each(item.curves, cu => {
+				let seg2off = cu.isLast() ? item.length : cu.segment2.location.offset
+				let cule = seg2off - cu.segment1.location.offset
+				let stps = Math.floor(cule / wi)
+				if (stps%2==0) stps++
+				let stp = cule/stps
+				//let n = cu.getNormalAtTime(.5)
+				
+				for(i=0;i<stps;i++) {
+					let lo = cu.getLocationAt(stp*i)
+					if (i%2==0 && i!=0) newSegs.push(lo.point.add(lo.normal*he))
+					newSegs.push(lo.point)
+					if (i%2!=0 && i!=stps) newSegs.push(lo.point.add(lo.normal*he))
+				}
+			})
+			item.segments = newSegs
+		}
+		path.hasChildren() ? each(path.children, child => iterate(child)) : iterate(path)
 	},
 	                                                         
 // 88888888ba                          88  88               
