@@ -699,7 +699,7 @@ mapArtX: (from, to, freq, pad, delOrig = false) => {
 getPointX: (ref, from, to, x, y, pad) => {
 	if (x > ref.width) x = ref.width
 	if (y > ref.height) y = ref.height
-
+	
 	xOff = (x - ref.left) / ref.width
 	yOff = (y - ref.top) / ref.height
 	temp = new paper.Group()
@@ -1959,6 +1959,7 @@ getPointX: (ref, from, to, x, y, pad) => {
 	stripedRect: (w, h, stripeGap, stripeWidth, angle, bgColor, stripeColor) => {
 		res = new paper.Group({clipped: true})
 
+		
 		bg = new paper.Path.Rectangle({
 			point: (0,0),
 			size: [w,h],
@@ -1986,6 +1987,7 @@ getPointX: (ref, from, to, x, y, pad) => {
 		mask.clipMask = true
 
 		res.rotate(-angle)
+		if (bgColor == null) bg.remove()
 
 		utl.flattenClipping(res)
 
@@ -2032,17 +2034,17 @@ getPointX: (ref, from, to, x, y, pad) => {
 	},
 	
 	//torus like polygon
-	polygon: (sides=6, rad=20, thickness=5, color='black', bgColor=null, pad=0) => {
+	polygon: (point=new Point(0,0), sides=6, rad=20, thickness=5, color='black', bgColor=null, pad=0) => {
 
 		let p1 = new paper.Path.RegularPolygon({
-			center: (0,0),
+			center: point,
 			sides: sides,
 			radius: rad,
 			fillColor:color
 		})
 
 		let p2 = new paper.Path.RegularPolygon({
-			center: (0,0),
+			center: point,
 			sides: sides,
 			radius: rad - thickness,
 			fillColor: color
@@ -2260,6 +2262,7 @@ getPointX: (ref, from, to, x, y, pad) => {
 		return res;
 	},
 
+	// Asterisk star
 	asterisk: (p, cnt, rad, w, opt, bgColor) => {
 		const r = (c, sz, opt) => new paper.Path.Rectangle({point: c.subtract(new paper.Point(sz[0]/2, sz[1]/2)), size:sz, ...opt})
 		
@@ -2289,6 +2292,25 @@ getPointX: (ref, from, to, x, y, pad) => {
 		return res
 	},
 
+	// Peace sign
+	peace: (p, rad, width, opt, project) => {
+		const po = (x,y) => new paper.Point(x,y)
+		const re = (c, sz, opt) => new paper.Path.Rectangle({point: c.subtract(new paper.Point(sz[0]/2, sz[1]/2)), size:sz, ...opt})
+		const c = (cnt,r,opt) => new paper.Path.Circle({center: cnt, radius: r, ...opt})
+		
+		let cis = new paper.Group([c(p,rad,opt), c(p,rad-width,opt)])
+		cic = cis.children
+		let ci = cic[0].subtract(cic[1], {insert:false})
+		cis.removeChildren()
+		cis.addChild(re(p, [width, rad*2-width], opt))
+		cis.addChild(re(p.add(po(0,rad/2)), [width, rad-width/4], {pivot:p, ...opt})).rotate(45)
+		cis.addChild(cic[1].clone().rotate(-90))
+		cic.forEach(i => ci = ci.unite(i), {insert:false})
+		cis.remove()
+	
+		project.activeLayer.addChild(ci)
+		return ci
+	},
 
 
 	                                               
@@ -2339,15 +2361,15 @@ getPointX: (ref, from, to, x, y, pad) => {
 
 	simplifyPath: (path, tolerance) => {
 		// Helper function to simplify a section of the path
-		const simplifySection = (start, end) => {
+		const simplifySection = (segments, start, end) => {
 			if (end - start < 2) {
-				return [path.segments[start], path.segments[end]];
+				return [segments[start], segments[end]];
 			}
 	
 			let maxDistance = 0;
 			let maxIndex = 0;
 			for (let i = start + 1; i < end; i++) {
-				let distance = calculateDistanceFromLine(path.segments[i].point, path.segments[start].point, path.segments[end].point);
+				let distance = calculateDistanceFromLine(segments[i].point, segments[start].point, segments[end].point);
 				if (distance > maxDistance) {
 					maxDistance = distance;
 					maxIndex = i;
@@ -2356,41 +2378,39 @@ getPointX: (ref, from, to, x, y, pad) => {
 	
 			if (maxDistance > tolerance) {
 				return [
-					...simplifySection(start, maxIndex),
-					...simplifySection(maxIndex, end).slice(1)
+					...simplifySection(segments, start, maxIndex),
+					...simplifySection(segments, maxIndex, end).slice(1)
 				];
 			} else {
-				return [path.segments[start], path.segments[end]];
+				return [segments[start], segments[end]];
 			}
 		};
 	
 		// Calculate the distance from a point to a line
 		const calculateDistanceFromLine = (point, lineStart, lineEnd) => {
-					// First, calculate the differences in x and y coordinates
-					const dx = lineEnd.x - lineStart.x;
-					const dy = lineEnd.y - lineStart.y;
-				
-					// Calculate the numerator of the distance formula
-					const numerator = Math.abs(dy * point.x - dx * point.y + lineEnd.x * lineStart.y - lineEnd.y * lineStart.x);
-				
-					// Calculate the denominator of the distance formula (the length of the line segment)
-					const denominator = Math.sqrt(dx * dx + dy * dy);
-				
-					// Prevent division by zero in case of a degenerate line segment
-					if (denominator === 0) return point.getDistance(lineStart);
-				
-					// Return the distance
-					return numerator / denominator;
-				};
-			
+			const dx = lineEnd.x - lineStart.x;
+			const dy = lineEnd.y - lineStart.y;
+			const numerator = Math.abs(dy * point.x - dx * point.y + lineEnd.x * lineStart.y - lineEnd.y * lineStart.x);
+			const denominator = Math.sqrt(dx * dx + dy * dy);
+			if (denominator === 0) return point.getDistance(lineStart);
+			return numerator / denominator;
+		};
 	
-		// Simplify the path and replace its segments
-		let simplifiedSegments = simplifySection(0, path.segments.length - 1);
-		path.segments = simplifiedSegments;
+		// Simplify each path within the compound path
+		if (path instanceof paper.CompoundPath) {
+			path.children.forEach(child => {
+				let simplifiedSegments = simplifySection(child.segments, 0, child.segments.length - 1);
+				child.segments = simplifiedSegments;
+			});
+		} else if (path instanceof paper.Path) {
+			let simplifiedSegments = simplifySection(path.segments, 0, path.segments.length - 1);
+			path.segments = simplifiedSegments;
+		}
 	
 		// Return the original path with its segments replaced
 		return path;
 	},
+	
 	
 	convertShapesToPaths: (item) => {
 
@@ -2615,12 +2635,12 @@ getPointX: (ref, from, to, x, y, pad) => {
 		})
 
 		if (mask) {
-
 			todel = []
 	
 			gCells.forEach(c => {
 				let out = true
 				c.segments.forEach(s => {
+					
 					if (!mask.contains(s.point)) {
 						near = mask.getNearestPoint(s.point)
 						s.point.x = near.x
@@ -3763,28 +3783,45 @@ getPointX: (ref, from, to, x, y, pad) => {
 		return Math.max(0, Math.min(1, value));
 	},
 
-	jag: (path, wi, he) =>{
+	// Makes path edge jagged. Iterate either all curves (nicer result if sharp corners) or process the whole path as one
+	jag: (path, wi, he, perCurve=true) => {
 		let iterate = (item) => {
-			let newSegs = []
-			
-			each(item.curves, cu => {
-				let seg2off = cu.isLast() ? item.length : cu.segment2.location.offset
-				let cule = seg2off - cu.segment1.location.offset
-				let stps = Math.floor(cule / wi)
-				if (stps%2==0) stps++
-				let stp = cule/stps
-				//let n = cu.getNormalAtTime(.5)
+			if (item instanceof paper.Path && item.segments) {
+				let newSegs = [];
 				
-				for(i=0;i<stps;i++) {
-					let lo = cu.getLocationAt(stp*i)
-					if (i%2==0 && i!=0) newSegs.push(lo.point.add(lo.normal*he))
-					newSegs.push(lo.point)
-					if (i%2!=0 && i!=stps) newSegs.push(lo.point.add(lo.normal*he))
+				if (perCurve) {
+					utl.each(item, cu => {					
+						let seg2off = cu.isLast() ? item.length : cu.segment2.location.offset;
+						let cule = seg2off - cu.segment1.location.offset
+						genJags(cule, cu)
+					});
 				}
-			})
-			item.segments = newSegs
-		}
-		path.hasChildren() ? each(path.children, child => iterate(child)) : iterate(path)
+				else {
+					genJags(item.length, item)
+				}
+
+				function genJags(length, myItem) {
+					let stps = Math.floor(length / wi);
+					if (stps % 2 == 0) stps++;
+					let stp = length / stps;
+		
+					for (let i = 0; i <= stps; i++) {
+						let lo = myItem.getLocationAt(Math.min(stp * i, length));
+						if (i % 2 == 0 && i != 0) newSegs.push(lo.point.add(lo.normal.multiply(he)));
+						newSegs.push(lo.point);	
+						if (i % 2 != 0 && i != stps) newSegs.push(lo.point.add(lo.normal.multiply(he)));
+					}
+				}
+		
+				item.segments = newSegs;
+			}
+	
+			if (item.hasChildren()) {
+				utl.each(item.children, child => iterate(child));
+			}
+		};
+		iterate(path);
+		return path;
 	},
 	                                                         
 // 88888888ba                          88  88               
@@ -4229,22 +4266,33 @@ getPointX: (ref, from, to, x, y, pad) => {
 //      88  88          "8b,   ,aa  "8a,   ,d88  "8b,   ,aa  
 //      88  88           `"Ybbd8"'   `"8bbdP"Y8   `"Ybbd8"'  
       
-	tree: (path, dep, esc, cols) =>{
+	tree: (path, dp, ep, cols=['#004470','#009994','#ffeb91','#ee7620']) =>{
+		res = new paper.Group()
 		const getD = (pa, esc, d) => pa.add(pa.subtract(esc).normalize().multiply(d));
 		const isVis = (pa, esc, cu) => !pa.contains(getD(cu.getPointAtTime(.5), esc, -5))
+		const p = (segs, opt) => new paper.Path({segments: segs, ...opt})
+		const tngts = (cc, rad, po) => {
+			th = Math.acos(a/cc.getDistance(p))
+			d = Math.atan2(po.y-cc.y, po.x-cc.x) 
+			d1=d+th, d2=d-th
+			return [new Point(cc.x+a*Math.cos(d1),cc.y+a*Math.sin(d1)), new Point(cc.x+a*Math.cos(d2), cc.y+a*Math.sin(d2))]
+		}
+		
 		sides = [{side:path, dist:0}]
 		
 		utl.each(path.curves, cu => {
-			if (isVis(path, esc, cu)) {
-				lo = cu.getLocationAtTime(.5)
-				fill = cols[lo.normal.quadrant-1]
-				di = lo.point.getDistance(esc)
-				sides.push({side: p([cu.point1, getD(cu.point1,esc,-dep), getD(cu.point2,esc,-dep), cu.point2], {fillColor:fill}), dist:di})
+			if (isVis(path, ep, cu)) {
+				let lo = cu.getLocationAtTime(.5)
+				let fill = cols[lo.normal.quadrant-1]
+				let di = lo.point.getDistance(ep)
+				let cp1 = cu.point1, cp2 = cu.point2
+				sides.push({side: p([cp1, getD(cp1,ep,-dp), getD(cp2,ep,-dp), cp2], {fillColor:fill}), dist:di})
 			}
 		})
 		
 		sides.sort(function(a, b) { return b.dist - a.dist});
-		utl.each(sides, side => side.side.bringToFront() )
+    	utl.each(sides, side => {side.side.parent = res; side.side.bringToFront();} )
+    	return res
 	}
                                                           
 
