@@ -120,15 +120,16 @@ let utl = {
 	},
 	
 	each: (array, callback) => { array.forEach(callback)},
-	
-	// 88b           d88                       88           
-	// 888b         d888                ,d     88           
-	// 88`8b       d8'88                88     88           
-	// 88 `8b     d8' 88  ,adPPYYba,  MM88MMM  88,dPPYba,   
-	// 88  `8b   d8'  88  ""     `Y8    88     88P'    "8a  
-	// 88   `8b d8'   88  ,adPPPPP88    88     88       88  
-	// 88    `888'    88  88,    ,88    88,    88       88  
-	// 88     `8'     88  `"8bbdP"Y8    "Y888  88       88  
+
+// MATH
+// 88b           d88                       88           
+// 888b         d888                ,d     88           
+// 88`8b       d8'88                88     88           
+// 88 `8b     d8' 88  ,adPPYYba,  MM88MMM  88,dPPYba,   
+// 88  `8b   d8'  88  ""     `Y8    88     88P'    "8a  
+// 88   `8b d8'   88  ,adPPPPP88    88     88       88  
+// 88    `888'    88  88,    ,88    88,    88       88  
+// 88     `8'     88  `"8bbdP"Y8    "Y888  88       88  
 	
 	PR: (seed=9238923) =>  {
 		const a = 1664525;
@@ -194,17 +195,17 @@ let utl = {
 		return Math.sin((x / max) * Math.PI);
 	},
 	
-	
-	//        db                                                          
-	//       d88b                                                         
-	//      d8'`8b                                                        
-	//     d8'  `8b      8b,dPPYba,  8b,dPPYba,  ,adPPYYba,  8b       d8  
-	//    d8YaaaaY8b     88P'   "Y8  88P'   "Y8  ""     `Y8  `8b     d8'  
-	//   d8""""""""8b    88          88          ,adPPPPP88   `8b   d8'   
-	//  d8'        `8b   88          88          88,    ,88    `8b,d8'    
-	// d8'          `8b  88          88          `"8bbdP"Y8      Y88'     
-	//                                                           d8'      
-	//                                                          d8'       
+// ARRAY	
+//        db                                                          
+//       d88b                                                         
+//      d8'`8b                                                        
+//     d8'  `8b      8b,dPPYba,  8b,dPPYba,  ,adPPYYba,  8b       d8  
+//    d8YaaaaY8b     88P'   "Y8  88P'   "Y8  ""     `Y8  `8b     d8'  
+//   d8""""""""8b    88          88          ,adPPPPP88   `8b   d8'   
+//  d8'        `8b   88          88          88,    ,88    `8b,d8'    
+// d8'          `8b  88          88          `"8bbdP"Y8      Y88'     
+//                                                           d8'      
+//                                                          d8'       
     // Get an array of random numbers sorted in order
 
     pick: (n, min, max) => {
@@ -291,7 +292,7 @@ let utl = {
 	
 	
 
-                                                                                      
+// VECTORS                                                                                     
 // 8b           d8                                                                   
 // `8b         d8'                         ,d                                        
 //  `8b       d8'                          88                                        
@@ -352,7 +353,7 @@ let utl = {
         return [new paper.Point(cc.x+rad*Math.cos(d1),cc.y+rad*Math.sin(d1)), new paper. Point(cc.x+rad*Math.cos(d2), cc.y+rad*Math.sin(d2))]
     },
 
-	                                                             
+//POINTS	                                                             
 // 88888888ba               88                                  
 // 88      "8b              ""                ,d                
 // 88      ,8P                                88                
@@ -427,7 +428,7 @@ let utl = {
 		return isCollinear && isWithinBounds;
 	},
           
-	
+// MAPPING
 // 88b           d88                                        88                            
 // 888b         d888                                        ""                            
 // 88`8b       d8'88                                                                      
@@ -660,10 +661,9 @@ mapArtX: (from, to, freq, pad, delOrig = false) => {
 		let resPath = new paper.Path({
 			strokeColor: path.strokeColor,
 			strokeWidth: path.strokeWidth,
-			fillColor: path.fillColor
+			fillColor: path.fillColor,
+			closed: path.closed
 		});
-
-		resPath.closed = path.closed;
 
 		let pCount = Math.floor(path.length / freq);
 		let segLe = path.length / pCount
@@ -758,9 +758,8 @@ getPointX: (ref, from, to, x, y, pad) => {
 	return res
 },
 
-
 	
-	                                                                                                  
+// OCCLUSION	                                                                                                  
 //   ,ad8888ba,                            88                          88                            
 //  d8"'    `"8b                           88                          ""                            
 // d8'        `8b                          88                                                        
@@ -769,8 +768,7 @@ getPointX: (ref, from, to, x, y, pad) => {
 // Y8,        ,8P  8b          8b          88  88       88   `"Y8ba,   88  8b       d8  88       88  
 //  Y8a.    .a8P   "8a,   ,aa  "8a,   ,aa  88  "8a,   ,a88  aa    ]8I  88  "8a,   ,a8"  88       88  
 //   `"Y8888Y"'     `"Ybbd8"'   `"Ybbd8"'  88   `"YbbdP'Y8  `"YbbdP"'  88   `"YbbdP"'   88       88  
-                                                                                                  
-                                                                                                  
+                                                                                                                                                                                               
 
 	occlusionX: (item, cookie=false, origColors=false, smallLines=0.1, verbose=true, callback=undefined) => {
 		utl.ungroup(item)
@@ -863,15 +861,10 @@ getPointX: (ref, from, to, x, y, pad) => {
 			for (let k=x+1;k<len;k++) {
 
 				let testEl = origs[k]			
-				let rect2 = testEl.bounds
+				// let rect2 = testEl.bounds
 
-				function checkOverlap(r1, r2) {
-					return !(r1.right < r2.left || r1.bottom < r2.top || r1.left > r2.right || r1.top > r2.bottom);				
-				}
-
-				if (testEl.closed) {
-					if (checkOverlap(rect1, rect2)) ints.push(testEl)					
-				}
+				const checkOverlap = (r1, r2) => !(r1.right < r2.left || r1.bottom < r2.top || r1.left > r2.right || r1.top > r2.bottom)							
+				if (testEl.closed && checkOverlap(rect1, testEl.bounds)) ints.push(testEl)					
 			}
 
 			intLen = ints.length
@@ -1309,14 +1302,14 @@ getPointX: (ref, from, to, x, y, pad) => {
 		clipGroup.clipped = false
 
 		// clean up stray points
-		for (let i=clipGroup.children.length;i>0;i--){
+		for (let i=clipGroup.children.length-1;i>0;i--){
 			let curEl = clipGroup.children[i]
 			if (curEl != undefined && curEl.length == 0) curEl.remove()
 		}
 
 	},
 
-                                                           
+// HATCH                                                         
 // 88        88                                  88           
 // 88        88                ,d                88           
 // 88        88                88                88           
@@ -1329,7 +1322,7 @@ getPointX: (ref, from, to, x, y, pad) => {
                                                            
 	// Hatch fill simple shapes (renctangle, circle etc. No U-shapes)
 	hatchFill: (path, off, angle, penW, color) => {
-
+		console.log('Hatchfill: starting')
 		commonPivot = new paper.Point(0,0) // doesn't matter what it is as long as its not paths default pivot
 
 		penW = penW * 2.83465 // convert pen width from mm to points
@@ -1426,21 +1419,43 @@ getPointX: (ref, from, to, x, y, pad) => {
 
 	// Hatch fill any shape	
 	hatchFillAny: (origpath, penW, angle, color, debug=false, crossHatch=false, zigzag=true) => {
-		
-		if (origpath == null || origpath.area < 1) return 
+		mm=2.83465
+		mindim=Math.min(origpath.bounds.width,origpath.bounds.height)
+
+		if (origpath == null || mindim < 1 ){
+			console.log('path bypassed')
+			return 
+		} 
 
 		let commonPivot = new paper.Point(0,0)
-		penW = penW * 2.83465 // convert pen width from mm to points		
+		
+		Array.isArray(penW) ? penW.forEach((pw, index, arr)=>arr[index]=pw*mm) : penW*=mm // convert pen width from mm to points		
 		
 		let origColor = origpath.fillColor ? origpath.fillColor : 'black'
 		if (color) origColor = color
 		
 		resG = new paper.Group({pivot: commonPivot})
 		
-		path = PaperOffset.offset(origpath, -penW)
-		pathCopy2 = PaperOffset.offset(origpath, -.5 * penW)
+		let hatchAreaOff=penW, edgeOff=penW, edgeLayers=1
+		if (Array.isArray(penW)) {
+		    let Lpen = Math.max(...penW)
+		    let Spen = Math.min(...penW)
+		    hatchAreaOff = Lpen
+		    edgeOff = Spen
+		    edgeLayers = Math.floor(Lpen / Spen)+1
 
+			if (mindim < 10*Spen) hatchAreaOff = Spen
+		}				
+		
+		path = PaperOffset.offset(origpath, -hatchAreaOff)
+		pathCopy2 = PaperOffset.offset(origpath, -.5 * edgeOff)
 		path.pivot = commonPivot
+		
+		for (let i=1;i<edgeLayers;i++) {
+		    let edge = PaperOffset.offset(origpath, -.5 * i * edgeOff)
+		    edge.strokeWidth = edgeOff
+		    edge.parent = resG
+		}
 		
 		
 		hatch(angle)
@@ -1459,7 +1474,7 @@ getPointX: (ref, from, to, x, y, pad) => {
 			let offset = (di - pb.width) / 2
 	
 			// calculate how much lines fit onto the path with density given as parametre
-			var linesCount = (Math.max(pb.width, pb.height) + 2 * offset) /  penW
+			var linesCount = (Math.max(pb.width, pb.height) + 2 * offset) /  hatchAreaOff
 			
 			// Create dummy compound path to accommodate individual lines
 			var lines = new paper.Group({pivot: commonPivot});
@@ -1475,7 +1490,7 @@ getPointX: (ref, from, to, x, y, pad) => {
 			
 			for (var l = 0; l < linesCount; l++) {
 				// The horizontal position of a hatch line
-				var x = pb.left - offset + l * penW;
+				var x = pb.left - offset + l * hatchAreaOff;
 	
 				// Create reference line in order to get intersection points
 				var refline = new paper.Path.Line({
@@ -1595,7 +1610,7 @@ getPointX: (ref, from, to, x, y, pad) => {
 				for (var i = 0; i < oRunList.length; i++) {
 
 					var continuousLine
-					if (zigzag) continuousLine = new paper.Path({strokeColor: path.strokeColor})
+					if (zigzag) continuousLine = new paper.Path({strokeColor: path.strokeColor, strokeWidth:hatchAreaOff})
 
 					var myList = oRunList[i];
 		
@@ -1632,19 +1647,17 @@ getPointX: (ref, from, to, x, y, pad) => {
 		}
 
 		path.parent = resG
+		path.strokeWidth = hatchAreaOff
 		
-		pathCopy2.parent = resG
-		pathCopy2.strokeColor = color
-		pathCopy2.strokeWidth = penW
-		pathCopy2.fillColor = null
-
-		resG.strokeWidth = penW
 		resG.fillColor = null
 		resG.strokeColor = origColor
 		resG.strokeCap = 'round'
 		resG.strokeJoin = 'round'
-
-		// path.remove()
+		
+		pathCopy2.parent = resG
+		pathCopy2.strokeColor = color
+		pathCopy2.strokeWidth = edgeOff
+		pathCopy2.fillColor = null
 
 		return resG
 
@@ -1658,7 +1671,58 @@ getPointX: (ref, from, to, x, y, pad) => {
 		 }
 	},
 
-                                                             
+
+// FILL
+// ███████╗██╗██╗     ██╗     
+// ██╔════╝██║██║     ██║     
+// █████╗  ██║██║     ██║     
+// ██╔══╝  ██║██║     ██║     
+// ██║     ██║███████╗███████╗
+// ╚═╝     ╚═╝╚══════╝╚══════╝
+                           
+fillGrid: (path, pat, freq, rnd, opt) => {        
+    let bo = path.bounds
+    let max = Math.max(bo.height, bo.width)
+    let stp = max / freq * 1.05
+    let freqX = bo.width < max ? Math.ceil(bo.width / (bo.height/freq)) : freq 
+    let freqY = bo.height < max ? Math.ceil(bo.height / (bo.width/freq)) : freq 
+    
+    let res = new paper.Group()
+    for(let x=0;x<freqX;x++) {
+        for(let y=0;y<freqY;y++) {
+            myp = bo.topLeft.add(new paper.Point(x*stp, y*stp))
+            mypat = pat.clone()
+            mypat.position=myp.add(new paper.Point(utl.Rr(rnd, -rnd),utl.Rr(rnd, -rnd)))
+            mypat.parent=res
+            mypat.style={...opt}
+        }
+    }
+    let todel = []
+    let ints = []
+    res.children.forEach(item => {
+        let isInt = path.intersects(item)
+		let isBigger = path.isInside(item.bounds)
+        if ((!path.contains(item.bounds.center) && !isInt) || isBigger) todel.push(item)
+        if (isInt) ints.push(item)
+    })
+    
+    ints.forEach(item => {
+        let pcl = path.clone()
+        let myres = item.intersect(pcl, {trace:false})
+        if (myres instanceof paper.CompoundPath) {
+            myres.children.forEach(item => {
+               if (!path.contains(item.getPointAt(item.length/2))) item.remove()
+            })
+        }
+        todel.push(item)
+        pcl.remove()
+    })
+    
+    todel.forEach(item => item.remove())
+    return res
+},
+
+// COLOR                                                           
 //   ,ad8888ba,                88                           
 //  d8"'    `"8b               88                           
 // d8'                         88                           
@@ -1706,7 +1770,7 @@ getPointX: (ref, from, to, x, y, pad) => {
 	
 
 
-                                                                  
+// STRING                                                           
 //  ad88888ba                      88                            
 // d8"     "8b  ,d                 ""                            
 // Y8,          88                                               
@@ -1727,17 +1791,17 @@ getPointX: (ref, from, to, x, y, pad) => {
 		return /^[A-Z]$/.test(char);
 	},
 
-
-	// 88888888888                         88                            
-	// 88                                  ""                            
-	// 88                                                                
-	// 88aaaaa      ,adPPYYba,  ,adPPYba,  88  8b,dPPYba,    ,adPPYb,d8  
-	// 88"""""      ""     `Y8  I8[    ""  88  88P'   `"8a  a8"    `Y88  
-	// 88           ,adPPPPP88   `"Y8ba,   88  88       88  8b       88  
-	// 88           88,    ,88  aa    ]8I  88  88       88  "8a,   ,d88  
-	// 88888888888  `"8bbdP"Y8  `"YbbdP"'  88  88       88   `"YbbdP"Y8  
-	//                                                       aa,    ,88  
-	//                                                        "Y8bbdP"   
+// EASING
+// 88888888888                         88                            
+// 88                                  ""                            
+// 88                                                                
+// 88aaaaa      ,adPPYYba,  ,adPPYba,  88  8b,dPPYba,    ,adPPYb,d8  
+// 88"""""      ""     `Y8  I8[    ""  88  88P'   `"8a  a8"    `Y88  
+// 88           ,adPPPPP88   `"Y8ba,   88  88       88  8b       88  
+// 88           88,    ,88  aa    ]8I  88  88       88  "8a,   ,d88  
+// 88888888888  `"8bbdP"Y8  `"YbbdP"'  88  88       88   `"YbbdP"Y8  
+//                                                       aa,    ,88  
+//                                                        "Y8bbdP"   
 
     easingAnims: (min, max, easing, phase) => {
         phase = animFrame / (document.getElementById('animSpeed').value * 10);
@@ -1828,7 +1892,7 @@ getPointX: (ref, from, to, x, y, pad) => {
 
 
 	                                                                                                                 
-                                                                                                      
+// PRIMITIVES                                                                                                  
 // 88888888ba               88                      88           88                                      
 // 88      "8b              ""                      ""    ,d     ""                                      
 // 88      ,8P                                            88                                             
@@ -1836,8 +1900,7 @@ getPointX: (ref, from, to, x, y, pad) => {
 // 88""""""'    88P'   "Y8  88  88P'   "88"    "8a  88    88     88  `8b     d8'  a8P_____88  I8[    ""  
 // 88           88          88  88      88      88  88    88     88   `8b   d8'   8PP"""""""   `"Y8ba,   
 // 88           88          88  88      88      88  88    88,    88    `8b,d8'    "8b,   ,aa  aa    ]8I  
-// 88           88          88  88      88      88  88    "Y888  88      "8"       `"Ybbd8"'  `"YbbdP"'  
-                                                                                                      
+// 88           88          88  88      88      88  88    "Y888  88      "8"       `"Ybbd8"'  `"YbbdP"'                                                                                                        
                                                                                                       
                                                                                                                  
 	C: (p,r,c) => new paper.Path.Circle({center: p, radius: r, fillColor: c }),
@@ -2275,7 +2338,7 @@ getPointX: (ref, from, to, x, y, pad) => {
 		
 		
 		
-		let ast = new paper.Path({segments: fig.segments, ...opt})
+		let ast = new paper.Path({segments: fig.segments,  ...opt, closed:true })
 		
 		let res = new paper.Group()
 	
@@ -2313,7 +2376,7 @@ getPointX: (ref, from, to, x, y, pad) => {
 	},
 
 
-	                                               
+// PATH                                             
 // 88888888ba                        88           
 // 88      "8b                ,d     88           
 // 88      ,8P                88     88           
@@ -2468,7 +2531,7 @@ getPointX: (ref, from, to, x, y, pad) => {
     },
 
 
-                                            
+// GRID                                           
 //   ,ad8888ba,               88           88  
 //  d8"'    `"8b              ""           88  
 // d8'                                     88  
@@ -2719,7 +2782,7 @@ getPointX: (ref, from, to, x, y, pad) => {
 		return res
 	},
 
-	                                                                     
+// FOLDING                                                                   
 // 88888888888           88           88  88                            
 // 88                    88           88  ""                            
 // 88                    88           88                                
@@ -2775,7 +2838,7 @@ getPointX: (ref, from, to, x, y, pad) => {
 	},
 
 
-	                                                                            
+// VECTEXT                                                                            
 // 8b           d8                  888888888888                               
 // `8b         d8'                       88                             ,d     
 //  `8b       d8'                        88                             88     
@@ -3239,7 +3302,7 @@ getPointX: (ref, from, to, x, y, pad) => {
 
 
 
-                                                            
+// WARP                                                        
 // I8,        8        ,8I                                     
 // `8b       d8b       d8'                                     
 //  "8,     ,8"8,     ,8"                                      
@@ -3458,7 +3521,7 @@ getPointX: (ref, from, to, x, y, pad) => {
 	},
 
 
-	                                                                                                                         
+// Drag'n drop	                                                                                                                         
 // 88888888ba,                                         d8'             88888888ba,                                          
 // 88      `"8b                                       d8'              88      `"8b                                         
 // 88        `8b                                     ""                88        `8b                                        
@@ -3518,7 +3581,8 @@ getPointX: (ref, from, to, x, y, pad) => {
 		}
 	},
 
-                                                                         
+
+// LAYOUT
 // 88                                                                       
 // 88                                                                ,d     
 // 88                                                                88     
@@ -3605,7 +3669,7 @@ getPointX: (ref, from, to, x, y, pad) => {
 
 	},
 
-	                                                                        
+// DISTORT
 // 88888888ba,    88                                                       
 // 88      `"8b   ""               ,d                               ,d     
 // 88        `8b                   88                               88     
@@ -3823,7 +3887,8 @@ getPointX: (ref, from, to, x, y, pad) => {
 		iterate(path);
 		return path;
 	},
-	                                                         
+
+// PERLIN
 // 88888888ba                          88  88               
 // 88      "8b                         88  ""               
 // 88      ,8P                         88                   
@@ -3943,7 +4008,7 @@ getPointX: (ref, from, to, x, y, pad) => {
     },
 
 
-                                             
+// SLICE                                             
 //  ad88888ba   88  88                          
 // d8"     "8b  88  ""                          
 // Y8,          88                              
@@ -4009,7 +4074,7 @@ getPointX: (ref, from, to, x, y, pad) => {
 	},
 
 
-                                                                
+// ROUND                                                                
 // 88888888ba                                                  88  
 // 88      "8b                                                 88  
 // 88      ,8P                                                 88  
@@ -4256,7 +4321,7 @@ getPointX: (ref, from, to, x, y, pad) => {
 		return result
 	},
 
-	                                                          
+//TREDE	                                                          
 // 888888888888                              88              
 //      88                                   88              
 //      88                                   88              
@@ -4286,7 +4351,7 @@ getPointX: (ref, from, to, x, y, pad) => {
 				let fill = cols[lo.normal.quadrant-1]
 				let di = lo.point.getDistance(ep)
 				let cp1 = cu.point1, cp2 = cu.point2
-				sides.push({side: p([cp1, getD(cp1,ep,-dp), getD(cp2,ep,-dp), cp2], {fillColor:fill}), dist:di})
+				sides.push({side: p([cp1, getD(cp1,ep,-dp), getD(cp2,ep,-dp), cp2], {fillColor:fill, closed:true}), dist:di})
 			}
 		})
 		
