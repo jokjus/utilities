@@ -3888,6 +3888,20 @@ fillGrid: (path, pat, freq, rnd, opt) => {
 		return path;
 	},
 
+	// Wraps around polar coordinates
+	polar:(item, cnt, rev) => {
+		const mypol = (po,cnt,wi) => cnt.add(new paper.Point({angle:(po.x-cnt.x)/wi*360*rev, length:cnt.y-po.y}))
+		const wi = item.bounds.width
+		const processPath = (item) => item.segments.map(se => se.point=mypol(se.point,cnt,wi))
+		const process = (item, action) => {
+			if (item.children) {
+				item.children.forEach(child => process(child, action))
+			}
+			if (item instanceof paper.Path) action(item)
+		}
+		process(item, processPath)		
+	},
+
 // PERLIN
 // 88888888ba                          88  88               
 // 88      "8b                         88  ""               
