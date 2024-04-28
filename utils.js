@@ -3888,6 +3888,45 @@ fillGrid: (path, pat, freq, rnd, opt) => {
 		return path;
 	},
 
+	wave: (path, wi, he, perCurve=false) => {
+	    let iterate = (item) => {
+			if (item instanceof paper.Path && item.segments) {
+				let newSegs = [];
+				
+				if (perCurve) {
+				    curves = path.curves
+					curves.forEach(cu => {					
+						let seg2off = cu.isLast() ? item.length : cu.segment2.location.offset;
+						let cule = seg2off - cu.segment1.location.offset
+						genWaves(cule, cu)
+					});
+				}
+				else genWaves(item.length, item)
+
+				function genWaves(length, myItem) {
+					let stps = Math.floor(length/wi);
+					if (stps%2!=0) stps++;
+					let stp = length / stps;
+		
+					for (let i=0; i<=stps-1; i++) {
+						let lo = myItem.getLocationAt(Math.min(stp * i, length));
+						let v = lo.normal.multiply(he)
+					    let newp = i%2==0 ? lo.point.add(v) : lo.point.add(-v)
+					    let t = lo.tangent
+					    newSegs.push( new paper.Segment({point:newp, handleIn:t.multiply(-wi/2), handleOut:t.multiply(wi/2) }) )
+					}
+				}
+				item.segments = newSegs;
+			}
+	
+			if (item.hasChildren()) {
+				item.children.forEach(child => iterate(child));
+			}
+		};
+		iterate(path);
+		return path;
+	},
+
 	// Wraps around polar coordinates
 	polar:(item, cnt, rev) => {
 		const mypol = (po,cnt,wi) => cnt.add(new paper.Point({angle:(po.x-cnt.x)/wi*360*rev, length:cnt.y-po.y}))
