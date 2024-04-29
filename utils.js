@@ -2531,7 +2531,7 @@ fillGrid: (path, pat, freq, rnd, opt) => {
     },
 
 	// Splits path into chuncks of specified length
-	split: (path, length) => {
+	split: (path, length, insertAbove=true) => {
 		var chunks = []
 	
 		while (path.length > length) {
@@ -2540,9 +2540,19 @@ fillGrid: (path, pat, freq, rnd, opt) => {
 			path = newPath
 		}
 		
+		if (insertAbove) chunks.forEach(ch => ch.insertAbove(path))
 		if (path.length > 0) chunks.push(path)
-	
 		return chunks
+	},
+
+	// Suffles the path's starting point
+	suffle: (path) => {
+		if (path.closed && path.segments.length > 0) {			
+			const randomIndex = Math.floor(Math.random() * path.segments.length);
+				
+			const newSegments = path.removeSegments(0, randomIndex);
+			path.addSegments(newSegments);
+		}
 	},
 
 
@@ -3885,10 +3895,13 @@ fillGrid: (path, pat, freq, rnd, opt) => {
 					let stp = length / stps;
 		
 					for (let i = 0; i <= stps; i++) {
-						let lo = myItem.getLocationAt(Math.min(stp * i, length));
-						if (i % 2 == 0 && i != 0) newSegs.push(lo.point.add(lo.normal.multiply(he)));
-						newSegs.push(lo.point);	
-						if (i % 2 != 0 && i != stps) newSegs.push(lo.point.add(lo.normal.multiply(he)));
+						let lo = myItem.getLocationAt(Math.min(stp * i, length-.0001));
+						if (i == stps) {newSegs.push(lo.point)}
+						else {
+							if (i % 2 == 0 && i != 0) newSegs.push(lo.point.add(lo.normal.multiply(he)));
+							newSegs.push(lo.point);	
+							if (i % 2 != 0) newSegs.push(lo.point.add(lo.normal.multiply(he)));
+						}
 					}
 				}
 		
