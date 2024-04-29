@@ -2530,6 +2530,21 @@ fillGrid: (path, pat, freq, rnd, opt) => {
         path.segments = segs
     },
 
+	// Splits path into chuncks of specified length
+	split: (path, length) => {
+		var chunks = []
+	
+		while (path.length > length) {
+			var newPath = path.splitAt(length)
+			chunks.push(path)
+			path = newPath
+		}
+		
+		if (path.length > 0) chunks.push(path)
+	
+		return chunks
+	},
+
 
 // GRID                                           
 //   ,ad8888ba,               88           88  
@@ -3894,7 +3909,7 @@ fillGrid: (path, pat, freq, rnd, opt) => {
 				let newSegs = [];
 				
 				if (perCurve) {
-				    curves = path.curves
+				    let curves = item.curves
 					curves.forEach(cu => {					
 						let seg2off = cu.isLast() ? item.length : cu.segment2.location.offset;
 						let cule = seg2off - cu.segment1.location.offset
@@ -3908,12 +3923,12 @@ fillGrid: (path, pat, freq, rnd, opt) => {
 					if (stps%2!=0) stps++;
 					let stp = length / stps;
 		
-					for (let i=0; i<=stps-1; i++) {
+					for (let i=0; i<=stps; i++) {
 						let lo = myItem.getLocationAt(Math.min(stp * i, length));
 						let v = lo.normal.multiply(he)
-					    let newp = i%2==0 ? lo.point.add(v) : lo.point.add(-v)
+					    let newp = i%2==0 ? lo.point.add(v) : lo.point.add(v.multiply(-1))
 					    let t = lo.tangent
-					    newSegs.push( new paper.Segment({point:newp, handleIn:t.multiply(-wi/2), handleOut:t.multiply(wi/2) }) )
+						if (!(path.closed && i==stps)) newSegs.push( new paper.Segment({point:newp, handleIn:t.multiply(-wi/2), handleOut:t.multiply(wi/2) }) )
 					}
 				}
 				item.segments = newSegs;
@@ -3939,6 +3954,41 @@ fillGrid: (path, pat, freq, rnd, opt) => {
 			if (item instanceof paper.Path) action(item)
 		}
 		process(item, processPath)		
+	},
+
+	// deflect path with another path. Reasonable values for amount are 0-10
+	deflect: (path, defo, amount, res) => {
+		let iterate = (item) => {
+			if (item instanceof paper.Path && item.segments) {
+				defC = defo.bounds.center
+				utl.resample(item, res)
+				
+				let segsWithinDef = []
+				item.segments.forEach(s => { if (defo.contains(s.point)) segsWithinDef.push(s) })
+				
+				segsWithinDef.forEach(s => {
+					let v = s.point.subtract(defC)
+					
+					let li = new paper.Path.Line({
+						from: defC,
+						to: defC.add(v.multiply(100000))
+					})
+					
+					let defI = li.getIntersections(defo)[0]
+					let defV = defI.point.subtract(s.point)
+					defV.length -= defV.length / amount
+					
+					s.point = s.point.add(defV)
+				})
+			}
+
+			if (item.hasChildren()) {
+				item.children.forEach(child => iterate(child));
+			}
+		};		
+
+		iterate(path);
+		return path;
 	},
 
 // PERLIN
