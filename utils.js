@@ -289,6 +289,14 @@ let utl = {
 		// Get a random element within the range
 		return getRandomElementInRange(weightedArray, minIndex, maxIndex);
 	},
+
+	shuffleA: (array) => {
+		for (let i = array.length - 1; i > 0; i--) {
+			const j = Math.floor(Math.random() * (i + 1));
+			[array[i], array[j]] = [array[j], array[i]];
+		}
+		return array;
+	},
 	
 	
 
@@ -1790,6 +1798,17 @@ fillGrid: (path, pat, freq, rnd, opt) => {
 	isUpperCase: (char) => {
 		return /^[A-Z]$/.test(char);
 	},
+
+	RString: (length) =>{
+		const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+		let result = '';
+		for (let i = 0; i < length; i++) {
+			const randomIndex = Math.floor(Math.random() * characters.length);
+			result += characters[randomIndex];
+		}
+		return result;
+	},
+	
 
 // EASING
 // 88888888888                         88                            
@@ -3651,9 +3670,11 @@ fillGrid: (path, pat, freq, rnd, opt) => {
 			r3.strokeColor = 'blue';
 			r3.opacity = .2;
 		}
+		res = new paper.Group([r2])
 
 		items.forEach(itO => {
 			let it = itO[0];
+			it.parent = res
 			let ib = it.bounds;
 
 			if (ib.width > rIn.width || ib.height > rIn.height) {
@@ -3673,6 +3694,8 @@ fillGrid: (path, pat, freq, rnd, opt) => {
 			}
 			it.bringToFront();
 		})
+
+		return res
 	},
 
 
@@ -3980,6 +4003,9 @@ fillGrid: (path, pat, freq, rnd, opt) => {
 				item.segments.forEach(s => { if (defo.contains(s.point)) segsWithinDef.push(s) })
 				
 				segsWithinDef.forEach(s => {
+					if (s.point.x === defC.x) defC.x -= 2
+				    if (s.point.y === defC.y) defC.y -= 1
+
 					let v = s.point.subtract(defC)
 					
 					let li = new paper.Path.Line({
@@ -3988,6 +4014,7 @@ fillGrid: (path, pat, freq, rnd, opt) => {
 					})
 					
 					let defI = li.getIntersections(defo)[0]
+					li.remove()
 					let defV = defI.point.subtract(s.point)
 					defV.length -= defV.length / amount
 					
@@ -4000,6 +4027,72 @@ fillGrid: (path, pat, freq, rnd, opt) => {
 			}
 		};		
 
+		iterate(path);
+		return path;
+	},
+
+	deflect2:(path, defo, amount, res) => {
+		let iterate = (item) => {
+			//if (item instanceof paper.Path && item.segments) {
+			//	if (item.bounds.intersects(defo.bounds)) {
+					
+					defC = defo.bounds.center.clone()
+					
+					//if (defC.x === item.bounds.center.x || defC.y === item.bounds.center.y) defC = defC.add(new paper.Point(10,10))
+					
+					let segsWithinDef = []
+					
+					for (let i=0;i<res;i++) {
+					   let off  = defo.length/res*i
+					   let offL = defo.getLocationAt(off)
+					   let li = new paper.Path.Line({
+							from: defC,
+							to: offL.point,
+						}) 
+						
+						item.children.forEach(ch => {
+							ch.divideAt(offL)
+							if (ch.bounds.intersects(defo.bounds)) {
+								if (onPath(ch, defC,200)) console.log('piste on käyrällä')
+								int = ch.getIntersections(li)
+								if (int.length>0) segsWithinDef.push([ch.divideAt(int[0]), offL.point])
+							}
+						})
+						
+						li.remove()
+						defC = defo.bounds.center.clone()
+					}
+					
+					segsWithinDef.forEach(s => {
+						let defV = s[1].subtract(s[0].point)
+						defV.length -= defV.length / amount
+						s[0].point = s[0].point.add(defV)
+					})
+				//}
+			//}
+
+			function onPath(path, point, tolerance) {
+				let location = path.getLocationAt(0); // Start from the beginning of the path
+				let closestPoint = location.point;
+				let closestDistance = point.getDistance(closestPoint);
+			
+				for (let offset = 0; offset <= path.length; offset += 1) {
+					location = path.getLocationAt(offset);
+					let currentPoint = location.point;
+					let distance = point.getDistance(currentPoint);
+			
+					if (distance < closestDistance) {
+						closestDistance = distance;
+						closestPoint = currentPoint;
+					}
+				}
+			
+				return closestDistance <= tolerance;
+			}
+	
+			//if (item.hasChildren()) iterate(child)
+		};		
+	
 		iterate(path);
 		return path;
 	},
