@@ -766,6 +766,50 @@ getPointX: (ref, from, to, x, y, pad) => {
 	return res
 },
 
+trimap: (src, tgt, art, res) => {
+    let resG = new paper.Group()
+    
+    let iterate = (item) => {
+		if (item instanceof paper.Path && item.segments) {
+            
+            let mpd = new paper.Path({strokeColor:item.strokeColor, closed:item.closed, fillColor:item.fillColor, parent:resG})
+            
+            let srcs = src.segments, tgts = tgt.segments
+            let srcTop = srcs[0].point, tgtTop = tgts[0].point
+            
+            if (res) resample(item,res)
+            
+            item.segments.forEach(se => {
+    
+                let v = se.point.subtract(srcTop)
+                
+                let guide = (f,t) => new paper.Path.Line({from:f, to:t, insert:false})
+        
+                let li = guide(srcTop, srcTop.add(v.multiply(50)))
+                
+                let int = li.getIntersections(tri1)[1]
+                
+                let base = pao([srcs[1], srcs[2]])
+                let relInt = base.getOffsetOf(int.point) / base.length
+                
+                let rely =  v.length / srcTop.getDistance(int.point)
+                
+                let base2 = pao([tgts[1], tgts[2]])
+                let li2 = guide(tgtTop, base2.getPointAt(relInt*base2.length))
+                
+                mpd.add(li2.getPointAt(rely*li2.length))
+			})
+		}
+		
+		if (item.hasChildren()) {
+			item.children.forEach(child => iterate(child));
+		}
+    }
+    
+    iterate(art);
+	return resG;
+},
+
 	
 // OCCLUSION	                                                                                                  
 //   ,ad8888ba,                            88                          88                            
