@@ -766,6 +766,7 @@ getPointX: (ref, from, to, x, y, pad) => {
 	return res
 },
 
+//Maps art from triangle to another. Art should be inside triangle. Triangles' top point should be segment[0].
 trimap: (src, tgt, art, res) => {
     let resG = new paper.Group()
     
