@@ -2439,6 +2439,27 @@ fillGrid: (path, pat, freq, rnd, opt) => {
 		return ci
 	},
 
+	love: (p, rad, width, opt, project) => {
+		const po = (x,y) => new paper.Point(x,y)		
+		const poa = (a,l) => new paper.Point({angle:a, length:l})
+		const sg = (x,y, aIn, lIn, aOut, lOut) => new paper.Segment(po(x,y), poa(aIn,lIn), poa(aOut, lOut))						
+		
+		pnts = [
+			po(rad,rad),
+			sg(rad/2, rad/2, 0, rad/3, 180, rad/3),
+			sg(0, rad, -90, rad/3, 90, rad/3),
+			sg(rad,rad*2.2, -135, rad/3, -45, rad/3),
+			sg(rad*2,rad, 90, rad/3, -90, rad/3),
+			sg(rad*1.5,rad/2, 0, rad/3, 180, rad/3)
+		]
+		
+		hrt = new paper.Path({segments:[...pnts], strokeWidth: width, ...opt, closed:true})
+		hrt.position = p
+
+		project.activeLayer.addChild(hrt)
+		return hrt
+	},
+
 
 // PATH                                             
 // 88888888ba                        88           
