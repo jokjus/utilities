@@ -119,16 +119,40 @@ let utl = {
 		"neon green fluo": "#b8d483",	
 	},
 	
+	each: (array, callback) => { array.forEach(callback)},
+
+// MATH
+// 88b           d88                       88           
+// 888b         d888                ,d     88           
+// 88`8b       d8'88                88     88           
+// 88 `8b     d8' 88  ,adPPYYba,  MM88MMM  88,dPPYba,   
+// 88  `8b   d8'  88  ""     `Y8    88     88P'    "8a  
+// 88   `8b d8'   88  ,adPPPPP88    88     88       88  
+// 88    `888'    88  88,    ,88    88,    88       88  
+// 88     `8'     88  `"8bbdP"Y8    "Y888  88       88  
 	
-	// 88b           d88                       88           
-	// 888b         d888                ,d     88           
-	// 88`8b       d8'88                88     88           
-	// 88 `8b     d8' 88  ,adPPYYba,  MM88MMM  88,dPPYba,   
-	// 88  `8b   d8'  88  ""     `Y8    88     88P'    "8a  
-	// 88   `8b d8'   88  ,adPPPPP88    88     88       88  
-	// 88    `888'    88  88,    ,88    88,    88       88  
-	// 88     `8'     88  `"8bbdP"Y8    "Y888  88       88  
+	PR: (seed=9238923) =>  {
+		const a = 1664525;
+		const c = 1013904223;
+		const m = Math.pow(2, 32);
+		const value = (a * seed + c) % m;
+		return value / m;
+	},
+
+	PRG: class LinearCongruentialGenerator {
+		constructor(seed) {
+			this.a = 1664525; // Multiplier
+			this.c = 1013904223; // Increment
+			this.m = Math.pow(2, 32); // Modulus
+			this.seed = seed;
+		}
 	
+		next() {
+			this.seed = (this.a * this.seed + this.c) % this.m;
+			return this.seed / this.m;
+		}
+	},
+
 	R: (a) => Math.random() * a,
 
 	F: (a) => Math.floor(a),	
@@ -171,17 +195,17 @@ let utl = {
 		return Math.sin((x / max) * Math.PI);
 	},
 	
-	
-	//        db                                                          
-	//       d88b                                                         
-	//      d8'`8b                                                        
-	//     d8'  `8b      8b,dPPYba,  8b,dPPYba,  ,adPPYYba,  8b       d8  
-	//    d8YaaaaY8b     88P'   "Y8  88P'   "Y8  ""     `Y8  `8b     d8'  
-	//   d8""""""""8b    88          88          ,adPPPPP88   `8b   d8'   
-	//  d8'        `8b   88          88          88,    ,88    `8b,d8'    
-	// d8'          `8b  88          88          `"8bbdP"Y8      Y88'     
-	//                                                           d8'      
-	//                                                          d8'       
+// ARRAY	
+//        db                                                          
+//       d88b                                                         
+//      d8'`8b                                                        
+//     d8'  `8b      8b,dPPYba,  8b,dPPYba,  ,adPPYYba,  8b       d8  
+//    d8YaaaaY8b     88P'   "Y8  88P'   "Y8  ""     `Y8  `8b     d8'  
+//   d8""""""""8b    88          88          ,adPPPPP88   `8b   d8'   
+//  d8'        `8b   88          88          88,    ,88    `8b,d8'    
+// d8'          `8b  88          88          `"8bbdP"Y8      Y88'     
+//                                                           d8'      
+//                                                          d8'       
     // Get an array of random numbers sorted in order
 
     pick: (n, min, max) => {
@@ -265,10 +289,18 @@ let utl = {
 		// Get a random element within the range
 		return getRandomElementInRange(weightedArray, minIndex, maxIndex);
 	},
+
+	shuffleA: (array) => {
+		for (let i = array.length - 1; i > 0; i--) {
+			const j = Math.floor(Math.random() * (i + 1));
+			[array[i], array[j]] = [array[j], array[i]];
+		}
+		return array;
+	},
 	
 	
 
-                                                                                      
+// VECTORS                                                                                     
 // 8b           d8                                                                   
 // `8b         d8'                         ,d                                        
 //  `8b       d8'                          88                                        
@@ -321,7 +353,15 @@ let utl = {
         return se;
     },
 
-	                                                             
+	// Returns as an array the two points on a circle that are tangential to an external point
+	tngts: (cc, rad, po) => {
+        let th = Math.acos(rad/cc.getDistance(p))
+        let d = Math.atan2(po.y-cc.y, po.x-cc.x) 
+        let d1=d+th, d2=d-th
+        return [new paper.Point(cc.x+rad*Math.cos(d1),cc.y+rad*Math.sin(d1)), new paper. Point(cc.x+rad*Math.cos(d2), cc.y+rad*Math.sin(d2))]
+    },
+
+//POINTS	                                                             
 // 88888888ba               88                                  
 // 88      "8b              ""                ,d                
 // 88      ,8P                                88                
@@ -396,7 +436,7 @@ let utl = {
 		return isCollinear && isWithinBounds;
 	},
           
-	
+// MAPPING
 // 88b           d88                                        88                            
 // 888b         d888                                        ""                            
 // 88`8b       d8'88                                                                      
@@ -629,10 +669,9 @@ mapArtX: (from, to, freq, pad, delOrig = false) => {
 		let resPath = new paper.Path({
 			strokeColor: path.strokeColor,
 			strokeWidth: path.strokeWidth,
-			fillColor: path.fillColor
+			fillColor: path.fillColor,
+			closed: path.closed
 		});
-
-		resPath.closed = path.closed;
 
 		let pCount = Math.floor(path.length / freq);
 		let segLe = path.length / pCount
@@ -668,7 +707,7 @@ mapArtX: (from, to, freq, pad, delOrig = false) => {
 getPointX: (ref, from, to, x, y, pad) => {
 	if (x > ref.width) x = ref.width
 	if (y > ref.height) y = ref.height
-
+	
 	xOff = (x - ref.left) / ref.width
 	yOff = (y - ref.top) / ref.height
 	temp = new paper.Group()
@@ -727,9 +766,53 @@ getPointX: (ref, from, to, x, y, pad) => {
 	return res
 },
 
+//Maps art from triangle to another. Art should be inside triangle. Triangles' top point should be segment[0].
+trimap: (src, tgt, art, res) => {
+    let resG = new paper.Group()
+    
+    let iterate = (item) => {
+		if (item instanceof paper.Path && item.segments) {
+            
+            let mpd = new paper.Path({strokeColor:item.strokeColor, closed:item.closed, fillColor:item.fillColor, parent:resG})
+            
+            let srcs = src.segments, tgts = tgt.segments
+            let srcTop = srcs[0].point, tgtTop = tgts[0].point
+            
+            if (res) resample(item,res)
+            
+            item.segments.forEach(se => {
+    
+                let v = se.point.subtract(srcTop)
+                
+                let guide = (f,t) => new paper.Path.Line({from:f, to:t, insert:false})
+        
+                let li = guide(srcTop, srcTop.add(v.multiply(50)))
+                
+                let int = li.getIntersections(tri1)[1]
+                
+                let base = pao([srcs[1], srcs[2]])
+                let relInt = base.getOffsetOf(int.point) / base.length
+                
+                let rely =  v.length / srcTop.getDistance(int.point)
+                
+                let base2 = pao([tgts[1], tgts[2]])
+                let li2 = guide(tgtTop, base2.getPointAt(relInt*base2.length))
+                
+                mpd.add(li2.getPointAt(rely*li2.length))
+			})
+		}
+		
+		if (item.hasChildren()) {
+			item.children.forEach(child => iterate(child));
+		}
+    }
+    
+    iterate(art);
+	return resG;
+},
 
 	
-	                                                                                                  
+// OCCLUSION	                                                                                                  
 //   ,ad8888ba,                            88                          88                            
 //  d8"'    `"8b                           88                          ""                            
 // d8'        `8b                          88                                                        
@@ -738,8 +821,7 @@ getPointX: (ref, from, to, x, y, pad) => {
 // Y8,        ,8P  8b          8b          88  88       88   `"Y8ba,   88  8b       d8  88       88  
 //  Y8a.    .a8P   "8a,   ,aa  "8a,   ,aa  88  "8a,   ,a88  aa    ]8I  88  "8a,   ,a8"  88       88  
 //   `"Y8888Y"'     `"Ybbd8"'   `"Ybbd8"'  88   `"YbbdP'Y8  `"YbbdP"'  88   `"YbbdP"'   88       88  
-                                                                                                  
-                                                                                                  
+                                                                                                                                                                                               
 
 	occlusionX: (item, cookie=false, origColors=false, smallLines=0.1, verbose=true, callback=undefined) => {
 		utl.ungroup(item)
@@ -832,15 +914,10 @@ getPointX: (ref, from, to, x, y, pad) => {
 			for (let k=x+1;k<len;k++) {
 
 				let testEl = origs[k]			
-				let rect2 = testEl.bounds
+				// let rect2 = testEl.bounds
 
-				function checkOverlap(r1, r2) {
-					return !(r1.right < r2.left || r1.bottom < r2.top || r1.left > r2.right || r1.top > r2.bottom);				
-				}
-
-				if (testEl.closed) {
-					if (checkOverlap(rect1, rect2)) ints.push(testEl)					
-				}
+				const checkOverlap = (r1, r2) => !(r1.right < r2.left || r1.bottom < r2.top || r1.left > r2.right || r1.top > r2.bottom)							
+				if (testEl.closed && checkOverlap(rect1, testEl.bounds)) ints.push(testEl)					
 			}
 
 			intLen = ints.length
@@ -1278,14 +1355,14 @@ getPointX: (ref, from, to, x, y, pad) => {
 		clipGroup.clipped = false
 
 		// clean up stray points
-		for (let i=clipGroup.children.length;i>0;i--){
+		for (let i=clipGroup.children.length-1;i>0;i--){
 			let curEl = clipGroup.children[i]
 			if (curEl != undefined && curEl.length == 0) curEl.remove()
 		}
 
 	},
 
-                                                           
+// HATCH                                                         
 // 88        88                                  88           
 // 88        88                ,d                88           
 // 88        88                88                88           
@@ -1298,7 +1375,7 @@ getPointX: (ref, from, to, x, y, pad) => {
                                                            
 	// Hatch fill simple shapes (renctangle, circle etc. No U-shapes)
 	hatchFill: (path, off, angle, penW, color) => {
-
+		console.log('Hatchfill: starting')
 		commonPivot = new paper.Point(0,0) // doesn't matter what it is as long as its not paths default pivot
 
 		penW = penW * 2.83465 // convert pen width from mm to points
@@ -1395,21 +1472,43 @@ getPointX: (ref, from, to, x, y, pad) => {
 
 	// Hatch fill any shape	
 	hatchFillAny: (origpath, penW, angle, color, debug=false, crossHatch=false, zigzag=true) => {
-		
-		if (origpath == null || origpath.area < 1) return 
+		mm=2.83465
+		mindim=Math.min(origpath.bounds.width,origpath.bounds.height)
+
+		if (origpath == null || mindim < 1 ){
+			console.log('path bypassed')
+			return 
+		} 
 
 		let commonPivot = new paper.Point(0,0)
-		penW = penW * 2.83465 // convert pen width from mm to points		
+		
+		Array.isArray(penW) ? penW.forEach((pw, index, arr)=>arr[index]=pw*mm) : penW*=mm // convert pen width from mm to points		
 		
 		let origColor = origpath.fillColor ? origpath.fillColor : 'black'
 		if (color) origColor = color
 		
 		resG = new paper.Group({pivot: commonPivot})
 		
-		path = PaperOffset.offset(origpath, -penW)
-		pathCopy2 = PaperOffset.offset(origpath, -.5 * penW)
+		let hatchAreaOff=penW, edgeOff=penW, edgeLayers=1
+		if (Array.isArray(penW)) {
+		    let Lpen = Math.max(...penW)
+		    let Spen = Math.min(...penW)
+		    hatchAreaOff = Lpen
+		    edgeOff = Spen
+		    edgeLayers = Math.floor(Lpen / Spen)+1
 
+			if (mindim < 10*Spen) hatchAreaOff = Spen
+		}				
+		
+		path = PaperOffset.offset(origpath, -hatchAreaOff)
+		pathCopy2 = PaperOffset.offset(origpath, -.5 * edgeOff)
 		path.pivot = commonPivot
+		
+		for (let i=1;i<edgeLayers;i++) {
+		    let edge = PaperOffset.offset(origpath, -.5 * i * edgeOff)
+		    edge.strokeWidth = edgeOff
+		    edge.parent = resG
+		}
 		
 		
 		hatch(angle)
@@ -1428,7 +1527,7 @@ getPointX: (ref, from, to, x, y, pad) => {
 			let offset = (di - pb.width) / 2
 	
 			// calculate how much lines fit onto the path with density given as parametre
-			var linesCount = (Math.max(pb.width, pb.height) + 2 * offset) /  penW
+			var linesCount = (Math.max(pb.width, pb.height) + 2 * offset) /  hatchAreaOff
 			
 			// Create dummy compound path to accommodate individual lines
 			var lines = new paper.Group({pivot: commonPivot});
@@ -1444,7 +1543,7 @@ getPointX: (ref, from, to, x, y, pad) => {
 			
 			for (var l = 0; l < linesCount; l++) {
 				// The horizontal position of a hatch line
-				var x = pb.left - offset + l * penW;
+				var x = pb.left - offset + l * hatchAreaOff;
 	
 				// Create reference line in order to get intersection points
 				var refline = new paper.Path.Line({
@@ -1564,7 +1663,7 @@ getPointX: (ref, from, to, x, y, pad) => {
 				for (var i = 0; i < oRunList.length; i++) {
 
 					var continuousLine
-					if (zigzag) continuousLine = new paper.Path({strokeColor: path.strokeColor})
+					if (zigzag) continuousLine = new paper.Path({strokeColor: path.strokeColor, strokeWidth:hatchAreaOff})
 
 					var myList = oRunList[i];
 		
@@ -1601,19 +1700,17 @@ getPointX: (ref, from, to, x, y, pad) => {
 		}
 
 		path.parent = resG
+		path.strokeWidth = hatchAreaOff
 		
-		pathCopy2.parent = resG
-		pathCopy2.strokeColor = color
-		pathCopy2.strokeWidth = penW
-		pathCopy2.fillColor = null
-
-		resG.strokeWidth = penW
 		resG.fillColor = null
 		resG.strokeColor = origColor
 		resG.strokeCap = 'round'
 		resG.strokeJoin = 'round'
-
-		// path.remove()
+		
+		pathCopy2.parent = resG
+		pathCopy2.strokeColor = color
+		pathCopy2.strokeWidth = edgeOff
+		pathCopy2.fillColor = null
 
 		return resG
 
@@ -1627,7 +1724,58 @@ getPointX: (ref, from, to, x, y, pad) => {
 		 }
 	},
 
-                                                             
+
+// FILL
+// ███████╗██╗██╗     ██╗     
+// ██╔════╝██║██║     ██║     
+// █████╗  ██║██║     ██║     
+// ██╔══╝  ██║██║     ██║     
+// ██║     ██║███████╗███████╗
+// ╚═╝     ╚═╝╚══════╝╚══════╝
+                           
+fillGrid: (path, pat, freq, rnd, opt) => {        
+    let bo = path.bounds
+    let max = Math.max(bo.height, bo.width)
+    let stp = max / freq * 1.05
+    let freqX = bo.width < max ? Math.ceil(bo.width / (bo.height/freq)) : freq 
+    let freqY = bo.height < max ? Math.ceil(bo.height / (bo.width/freq)) : freq 
+    
+    let res = new paper.Group()
+    for(let x=0;x<freqX;x++) {
+        for(let y=0;y<freqY;y++) {
+            myp = bo.topLeft.add(new paper.Point(x*stp, y*stp))
+            mypat = pat.clone()
+            mypat.position=myp.add(new paper.Point(utl.Rr(rnd, -rnd),utl.Rr(rnd, -rnd)))
+            mypat.parent=res
+            mypat.style={...opt}
+        }
+    }
+    let todel = []
+    let ints = []
+    res.children.forEach(item => {
+        let isInt = path.intersects(item)
+		let isBigger = path.isInside(item.bounds)
+        if ((!path.contains(item.bounds.center) && !isInt) || isBigger) todel.push(item)
+        if (isInt) ints.push(item)
+    })
+    
+    ints.forEach(item => {
+        let pcl = path.clone()
+        let myres = item.intersect(pcl, {trace:false})
+        if (myres instanceof paper.CompoundPath) {
+            myres.children.forEach(item => {
+               if (!path.contains(item.getPointAt(item.length/2))) item.remove()
+            })
+        }
+        todel.push(item)
+        pcl.remove()
+    })
+    
+    todel.forEach(item => item.remove())
+    return res
+},
+
+// COLOR                                                           
 //   ,ad8888ba,                88                           
 //  d8"'    `"8b               88                           
 // d8'                         88                           
@@ -1724,7 +1872,7 @@ fillGrid: (path, pat, freq, rnd, opt) => {
     return res
 },
 
-                                                                  
+// STRING                                                           
 //  ad88888ba                      88                            
 // d8"     "8b  ,d                 ""                            
 // Y8,          88                                               
@@ -1745,17 +1893,28 @@ fillGrid: (path, pat, freq, rnd, opt) => {
 		return /^[A-Z]$/.test(char);
 	},
 
+	RString: (length) =>{
+		const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+		let result = '';
+		for (let i = 0; i < length; i++) {
+			const randomIndex = Math.floor(Math.random() * characters.length);
+			result += characters[randomIndex];
+		}
+		return result;
+	},
+	
 
-	// 88888888888                         88                            
-	// 88                                  ""                            
-	// 88                                                                
-	// 88aaaaa      ,adPPYYba,  ,adPPYba,  88  8b,dPPYba,    ,adPPYb,d8  
-	// 88"""""      ""     `Y8  I8[    ""  88  88P'   `"8a  a8"    `Y88  
-	// 88           ,adPPPPP88   `"Y8ba,   88  88       88  8b       88  
-	// 88           88,    ,88  aa    ]8I  88  88       88  "8a,   ,d88  
-	// 88888888888  `"8bbdP"Y8  `"YbbdP"'  88  88       88   `"YbbdP"Y8  
-	//                                                       aa,    ,88  
-	//                                                        "Y8bbdP"   
+// EASING
+// 88888888888                         88                            
+// 88                                  ""                            
+// 88                                                                
+// 88aaaaa      ,adPPYYba,  ,adPPYba,  88  8b,dPPYba,    ,adPPYb,d8  
+// 88"""""      ""     `Y8  I8[    ""  88  88P'   `"8a  a8"    `Y88  
+// 88           ,adPPPPP88   `"Y8ba,   88  88       88  8b       88  
+// 88           88,    ,88  aa    ]8I  88  88       88  "8a,   ,d88  
+// 88888888888  `"8bbdP"Y8  `"YbbdP"'  88  88       88   `"YbbdP"Y8  
+//                                                       aa,    ,88  
+//                                                        "Y8bbdP"   
 
     easingAnims: (min, max, easing, phase) => {
         phase = animFrame / (document.getElementById('animSpeed').value * 10);
@@ -1856,7 +2015,7 @@ fillGrid: (path, pat, freq, rnd, opt) => {
 
 
 	                                                                                                                 
-                                                                                                      
+// PRIMITIVES                                                                                                  
 // 88888888ba               88                      88           88                                      
 // 88      "8b              ""                      ""    ,d     ""                                      
 // 88      ,8P                                            88                                             
@@ -1864,8 +2023,7 @@ fillGrid: (path, pat, freq, rnd, opt) => {
 // 88""""""'    88P'   "Y8  88  88P'   "88"    "8a  88    88     88  `8b     d8'  a8P_____88  I8[    ""  
 // 88           88          88  88      88      88  88    88     88   `8b   d8'   8PP"""""""   `"Y8ba,   
 // 88           88          88  88      88      88  88    88,    88    `8b,d8'    "8b,   ,aa  aa    ]8I  
-// 88           88          88  88      88      88  88    "Y888  88      "8"       `"Ybbd8"'  `"YbbdP"'  
-                                                                                                      
+// 88           88          88  88      88      88  88    "Y888  88      "8"       `"Ybbd8"'  `"YbbdP"'                                                                                                        
                                                                                                       
                                                                                                                  
 	C: (p,r,c) => new paper.Path.Circle({center: p, radius: r, fillColor: c }),
@@ -1987,6 +2145,7 @@ fillGrid: (path, pat, freq, rnd, opt) => {
 	stripedRect: (w, h, stripeGap, stripeWidth, angle, bgColor, stripeColor) => {
 		res = new paper.Group({clipped: true})
 
+		
 		bg = new paper.Path.Rectangle({
 			point: (0,0),
 			size: [w,h],
@@ -2014,6 +2173,7 @@ fillGrid: (path, pat, freq, rnd, opt) => {
 		mask.clipMask = true
 
 		res.rotate(-angle)
+		if (bgColor == null) bg.remove()
 
 		utl.flattenClipping(res)
 
@@ -2060,17 +2220,17 @@ fillGrid: (path, pat, freq, rnd, opt) => {
 	},
 	
 	//torus like polygon
-	polygon: (sides=6, rad=20, thickness=5, color='black', bgColor=null, pad=0) => {
+	polygon: (point=new Point(0,0), sides=6, rad=20, thickness=5, color='black', bgColor=null, pad=0) => {
 
 		let p1 = new paper.Path.RegularPolygon({
-			center: (0,0),
+			center: point,
 			sides: sides,
 			radius: rad,
 			fillColor:color
 		})
 
 		let p2 = new paper.Path.RegularPolygon({
-			center: (0,0),
+			center: point,
 			sides: sides,
 			radius: rad - thickness,
 			fillColor: color
@@ -2288,9 +2448,79 @@ fillGrid: (path, pat, freq, rnd, opt) => {
 		return res;
 	},
 
+	// Asterisk star
+	asterisk: (p, cnt, rad, w, opt, bgColor) => {
+		const r = (c, sz, opt) => new paper.Path.Rectangle({point: c.subtract(new paper.Point(sz[0]/2, sz[1]/2)), size:sz, ...opt})
+		
+		let fig = new paper.Path()
+		for (let i = 0; i < cnt; i++) {
+			let el = r(p, [w, rad*2]).rotate(180 / cnt * i);
+			fig = fig.unite(el, {insert: false})
+			el.remove();
+		}
+		
+		
+		
+		let ast = new paper.Path({segments: fig.segments,  ...opt, closed:true })
+		
+		let res = new paper.Group()
+	
+			if (bgColor) {
+				bgRe = new paper.Path.Rectangle(ast.bounds)
+				bgRe.scale(1.1)
+				bgRe.fillColor = bgColor
+				res.addChild( bgRe)
+			} 
+			
+			res.addChild(ast)
+		
+		
+		return res
+	},
+
+	// Peace sign
+	peace: (p, rad, width, opt, project) => {
+		const po = (x,y) => new paper.Point(x,y)
+		const re = (c, sz, opt) => new paper.Path.Rectangle({point: c.subtract(new paper.Point(sz[0]/2, sz[1]/2)), size:sz, ...opt})
+		const c = (cnt,r,opt) => new paper.Path.Circle({center: cnt, radius: r, ...opt})
+		
+		let cis = new paper.Group([c(p,rad,opt), c(p,rad-width,opt)])
+		cic = cis.children
+		let ci = cic[0].subtract(cic[1], {insert:false})
+		cis.removeChildren()
+		cis.addChild(re(p, [width, rad*2-width], opt))
+		cis.addChild(re(p.add(po(0,rad/2)), [width, rad-width/4], {pivot:p, ...opt})).rotate(45)
+		cis.addChild(cic[1].clone().rotate(-90))
+		cic.forEach(i => ci = ci.unite(i), {insert:false})
+		cis.remove()
+	
+		project.activeLayer.addChild(ci)
+		return ci
+	},
+
+	love: (p, rad, width, opt, project) => {
+		const po = (x,y) => new paper.Point(x,y)		
+		const poa = (a,l) => new paper.Point({angle:a, length:l})
+		const sg = (x,y, aIn, lIn, aOut, lOut) => new paper.Segment(po(x,y), poa(aIn,lIn), poa(aOut, lOut))						
+		
+		pnts = [
+			po(rad,rad),
+			sg(rad/2, rad/2, 0, rad/3, 180, rad/3),
+			sg(0, rad, -90, rad/3, 90, rad/3),
+			sg(rad,rad*2.2, -135, rad/3, -45, rad/3),
+			sg(rad*2,rad, 90, rad/3, -90, rad/3),
+			sg(rad*1.5,rad/2, 0, rad/3, 180, rad/3)
+		]
+		
+		hrt = new paper.Path({segments:[...pnts], strokeWidth: width, ...opt, closed:true})
+		hrt.position = p
+
+		project.activeLayer.addChild(hrt)
+		return hrt
+	},
 
 
-	                                               
+// PATH                                             
 // 88888888ba                        88           
 // 88      "8b                ,d     88           
 // 88      ,8P                88     88           
@@ -2338,15 +2568,15 @@ fillGrid: (path, pat, freq, rnd, opt) => {
 
 	simplifyPath: (path, tolerance) => {
 		// Helper function to simplify a section of the path
-		const simplifySection = (start, end) => {
+		const simplifySection = (segments, start, end) => {
 			if (end - start < 2) {
-				return [path.segments[start], path.segments[end]];
+				return [segments[start], segments[end]];
 			}
 	
 			let maxDistance = 0;
 			let maxIndex = 0;
 			for (let i = start + 1; i < end; i++) {
-				let distance = calculateDistanceFromLine(path.segments[i].point, path.segments[start].point, path.segments[end].point);
+				let distance = calculateDistanceFromLine(segments[i].point, segments[start].point, segments[end].point);
 				if (distance > maxDistance) {
 					maxDistance = distance;
 					maxIndex = i;
@@ -2355,41 +2585,39 @@ fillGrid: (path, pat, freq, rnd, opt) => {
 	
 			if (maxDistance > tolerance) {
 				return [
-					...simplifySection(start, maxIndex),
-					...simplifySection(maxIndex, end).slice(1)
+					...simplifySection(segments, start, maxIndex),
+					...simplifySection(segments, maxIndex, end).slice(1)
 				];
 			} else {
-				return [path.segments[start], path.segments[end]];
+				return [segments[start], segments[end]];
 			}
 		};
 	
 		// Calculate the distance from a point to a line
 		const calculateDistanceFromLine = (point, lineStart, lineEnd) => {
-					// First, calculate the differences in x and y coordinates
-					const dx = lineEnd.x - lineStart.x;
-					const dy = lineEnd.y - lineStart.y;
-				
-					// Calculate the numerator of the distance formula
-					const numerator = Math.abs(dy * point.x - dx * point.y + lineEnd.x * lineStart.y - lineEnd.y * lineStart.x);
-				
-					// Calculate the denominator of the distance formula (the length of the line segment)
-					const denominator = Math.sqrt(dx * dx + dy * dy);
-				
-					// Prevent division by zero in case of a degenerate line segment
-					if (denominator === 0) return point.getDistance(lineStart);
-				
-					// Return the distance
-					return numerator / denominator;
-				};
-			
+			const dx = lineEnd.x - lineStart.x;
+			const dy = lineEnd.y - lineStart.y;
+			const numerator = Math.abs(dy * point.x - dx * point.y + lineEnd.x * lineStart.y - lineEnd.y * lineStart.x);
+			const denominator = Math.sqrt(dx * dx + dy * dy);
+			if (denominator === 0) return point.getDistance(lineStart);
+			return numerator / denominator;
+		};
 	
-		// Simplify the path and replace its segments
-		let simplifiedSegments = simplifySection(0, path.segments.length - 1);
-		path.segments = simplifiedSegments;
+		// Simplify each path within the compound path
+		if (path instanceof paper.CompoundPath) {
+			path.children.forEach(child => {
+				let simplifiedSegments = simplifySection(child.segments, 0, child.segments.length - 1);
+				child.segments = simplifiedSegments;
+			});
+		} else if (path instanceof paper.Path) {
+			let simplifiedSegments = simplifySection(path.segments, 0, path.segments.length - 1);
+			path.segments = simplifiedSegments;
+		}
 	
 		// Return the original path with its segments replaced
 		return path;
 	},
+	
 	
 	convertShapesToPaths: (item) => {
 
@@ -2446,8 +2674,33 @@ fillGrid: (path, pat, freq, rnd, opt) => {
         path.segments = segs
     },
 
+	// Splits path into chuncks of specified length
+	split: (path, length, insertAbove=true) => {
+		var chunks = []
+	
+		while (path.length > length) {
+			var newPath = path.splitAt(length)
+			chunks.push(path)
+			path = newPath
+		}
+		
+		if (insertAbove) chunks.forEach(ch => ch.insertAbove(path))
+		if (path.length > 0) chunks.push(path)
+		return chunks
+	},
 
-                                            
+	// Suffles the path's starting point
+	suffle: (path) => {
+		if (path.closed && path.segments.length > 0) {			
+			const randomIndex = Math.floor(Math.random() * path.segments.length);
+				
+			const newSegments = path.removeSegments(0, randomIndex);
+			path.addSegments(newSegments);
+		}
+	},
+
+
+// GRID                                           
 //   ,ad8888ba,               88           88  
 //  d8"'    `"8b              ""           88  
 // d8'                                     88  
@@ -2614,12 +2867,12 @@ fillGrid: (path, pat, freq, rnd, opt) => {
 		})
 
 		if (mask) {
-
 			todel = []
 	
 			gCells.forEach(c => {
 				let out = true
 				c.segments.forEach(s => {
+					
 					if (!mask.contains(s.point)) {
 						near = mask.getNearestPoint(s.point)
 						s.point.x = near.x
@@ -2698,7 +2951,7 @@ fillGrid: (path, pat, freq, rnd, opt) => {
 		return res
 	},
 
-	                                                                     
+// FOLDING                                                                   
 // 88888888888           88           88  88                            
 // 88                    88           88  ""                            
 // 88                    88           88                                
@@ -2754,7 +3007,7 @@ fillGrid: (path, pat, freq, rnd, opt) => {
 	},
 
 
-	                                                                            
+// VECTEXT                                                                            
 // 8b           d8                  888888888888                               
 // `8b         d8'                       88                             ,d     
 //  `8b       d8'                        88                             88     
@@ -3218,7 +3471,7 @@ fillGrid: (path, pat, freq, rnd, opt) => {
 
 
 
-                                                            
+// WARP                                                        
 // I8,        8        ,8I                                     
 // `8b       d8b       d8'                                     
 //  "8,     ,8"8,     ,8"                                      
@@ -3376,7 +3629,7 @@ fillGrid: (path, pat, freq, rnd, opt) => {
 			xLi = inpol.intersect(path, {trace:false})
 			if (xLi instanceof paper.CompoundPath) xLi = inpol.clone()
 			inpol.remove()
-	}
+		}
 		else {
 			xLi = inpol    
 		}
@@ -3416,10 +3669,10 @@ fillGrid: (path, pat, freq, rnd, opt) => {
 			smoothV = .1
 			
 			let smoothStart = path.divideAt(smoothV*path.length)
-			path.removeSegments(0,smoothStart.index)
+			if (smoothStart) path.removeSegments(0,smoothStart.index)
 			
 			let smoothEnd = path.divideAt((1-smoothV)*path.length)
-			path.removeSegments(smoothEnd.index)
+			if (smoothEnd) path.removeSegments(smoothEnd.index)
 		}
 		
 		smooth()
@@ -3441,7 +3694,7 @@ fillGrid: (path, pat, freq, rnd, opt) => {
 	},
 
 
-	                                                                                                                         
+// Drag'n drop	                                                                                                                         
 // 88888888ba,                                         d8'             88888888ba,                                          
 // 88      `"8b                                       d8'              88      `"8b                                         
 // 88        `8b                                     ""                88        `8b                                        
@@ -3501,7 +3754,8 @@ fillGrid: (path, pat, freq, rnd, opt) => {
 		}
 	},
 
-                                                                         
+
+// LAYOUT
 // 88                                                                       
 // 88                                                                ,d     
 // 88                                                                88     
@@ -3545,9 +3799,11 @@ fillGrid: (path, pat, freq, rnd, opt) => {
 			r3.strokeColor = 'blue';
 			r3.opacity = .2;
 		}
+		res = new paper.Group([r2])
 
 		items.forEach(itO => {
 			let it = itO[0];
+			it.parent = res
 			let ib = it.bounds;
 
 			if (ib.width > rIn.width || ib.height > rIn.height) {
@@ -3567,6 +3823,8 @@ fillGrid: (path, pat, freq, rnd, opt) => {
 			}
 			it.bringToFront();
 		})
+
+		return res
 	},
 
 
@@ -3588,7 +3846,7 @@ fillGrid: (path, pat, freq, rnd, opt) => {
 
 	},
 
-	                                                                        
+// DISTORT
 // 88888888ba,    88                                                       
 // 88      `"8b   ""               ,d                               ,d     
 // 88        `8b                   88                               88     
@@ -3651,7 +3909,7 @@ fillGrid: (path, pat, freq, rnd, opt) => {
 	},
 
 	triangulate: (item, count, power, pivotType = 1, ungroup = false, poisson = false) => {
-		console.log('distorting: triangulate')
+		console.log('Distortion: triangulate')
 		let ib = item.bounds
 		let resGroup = new paper.Group()
 
@@ -3699,7 +3957,10 @@ fillGrid: (path, pat, freq, rnd, opt) => {
 		let co = delaunay.coords
 
 		forEachTriangle(points, delaunay, drawTri)
-		if (ungroup) utl.ungroup(resGroup);
+		if (ungroup) {
+			console.log('Distortion: ungrouping & flattening')
+			utl.ungroup(resGroup)
+		}
 
 		item.remove()
 
@@ -3763,7 +4024,209 @@ fillGrid: (path, pat, freq, rnd, opt) => {
 		return Math.max(0, Math.min(1, value));
 	},
 
-	                                                         
+	// Makes path edge jagged. Iterate either all curves (nicer result if sharp corners) or process the whole path as one
+	jag: (path, wi, he, perCurve=true) => {
+		let iterate = (item) => {
+			if (item instanceof paper.Path && item.segments) {
+				let newSegs = [];
+				
+				if (perCurve) {
+					utl.each(item, cu => {					
+						let seg2off = cu.isLast() ? item.length : cu.segment2.location.offset;
+						let cule = seg2off - cu.segment1.location.offset
+						genJags(cule, cu)
+					});
+				}
+				else {
+					genJags(item.length, item)
+				}
+
+				function genJags(length, myItem) {
+					let stps = Math.floor(length / wi);
+					if (stps % 2 == 0) stps++;
+					let stp = length / stps;
+		
+					for (let i = 0; i <= stps; i++) {
+						let lo = myItem.getLocationAt(Math.min(stp * i, length-.0001));
+						if (i == stps) {newSegs.push(lo.point)}
+						else {
+							if (i % 2 == 0 && i != 0) newSegs.push(lo.point.add(lo.normal.multiply(he)));
+							newSegs.push(lo.point);	
+							if (i % 2 != 0) newSegs.push(lo.point.add(lo.normal.multiply(he)));
+						}
+					}
+				}
+		
+				item.segments = newSegs;
+			}
+	
+			if (item.hasChildren()) {
+				utl.each(item.children, child => iterate(child));
+			}
+		};
+		iterate(path);
+		return path;
+	},
+
+	wave: (path, wi, he, perCurve=false) => {
+	    let iterate = (item) => {
+			if (item instanceof paper.Path && item.segments) {
+				let newSegs = [];
+				
+				if (perCurve) {
+				    let curves = item.curves
+					curves.forEach(cu => {					
+						let seg2off = cu.isLast() ? item.length : cu.segment2.location.offset;
+						let cule = seg2off - cu.segment1.location.offset
+						genWaves(cule, cu)
+					});
+				}
+				else genWaves(item.length, item)
+
+				function genWaves(length, myItem) {
+					let stps = Math.floor(length/wi);
+					if (stps%2!=0) stps++;
+					let stp = length / stps;
+		
+					for (let i=0; i<=stps; i++) {
+						let lo = myItem.getLocationAt(Math.min(stp * i, length));
+						let v = lo.normal.multiply(he)
+					    let newp = i%2==0 ? lo.point.add(v) : lo.point.add(v.multiply(-1))
+					    let t = lo.tangent
+						if (!(path.closed && i==stps)) newSegs.push( new paper.Segment({point:newp, handleIn:t.multiply(-wi/2), handleOut:t.multiply(wi/2) }) )
+					}
+				}
+				item.segments = newSegs;
+			}
+	
+			if (item.hasChildren()) {
+				item.children.forEach(child => iterate(child));
+			}
+		};
+		iterate(path);
+		return path;
+	},
+
+	// Wraps around polar coordinates
+	polar:(item, cnt, rev) => {
+		const mypol = (po,cnt,wi) => cnt.add(new paper.Point({angle:(po.x-cnt.x)/wi*360*rev, length:cnt.y-po.y}))
+		const wi = item.bounds.width
+		const processPath = (item) => item.segments.map(se => se.point=mypol(se.point,cnt,wi))
+		const process = (item, action) => {
+			if (item.children) {
+				item.children.forEach(child => process(child, action))
+			}
+			if (item instanceof paper.Path) action(item)
+		}
+		process(item, processPath)		
+	},
+
+	// deflect path with another path. Reasonable values for amount are 0-10
+	deflect: (path, defo, amount, res) => {
+		let iterate = (item) => {
+			if (item instanceof paper.Path && item.segments) {
+				defC = defo.bounds.center
+				utl.resample(item, res)
+				
+				let segsWithinDef = []
+				item.segments.forEach(s => { if (defo.contains(s.point)) segsWithinDef.push(s) })
+				
+				segsWithinDef.forEach(s => {
+					if (s.point.x === defC.x) defC.x -= 2
+				    if (s.point.y === defC.y) defC.y -= 1
+
+					let v = s.point.subtract(defC)
+					
+					let li = new paper.Path.Line({
+						from: defC,
+						to: defC.add(v.multiply(100000))
+					})
+					
+					let defI = li.getIntersections(defo)[0]
+					li.remove()
+					let defV = defI.point.subtract(s.point)
+					defV.length -= defV.length / amount
+					
+					s.point = s.point.add(defV)
+				})
+			}
+
+			if (item.hasChildren()) {
+				item.children.forEach(child => iterate(child));
+			}
+		};		
+
+		iterate(path);
+		return path;
+	},
+
+	deflect2:(path, defo, amount, res) => {
+		let iterate = (item) => {
+			//if (item instanceof paper.Path && item.segments) {
+			//	if (item.bounds.intersects(defo.bounds)) {
+					
+					defC = defo.bounds.center.clone()
+					
+					//if (defC.x === item.bounds.center.x || defC.y === item.bounds.center.y) defC = defC.add(new paper.Point(10,10))
+					
+					let segsWithinDef = []
+					
+					for (let i=0;i<res;i++) {
+					   let off  = defo.length/res*i
+					   let offL = defo.getLocationAt(off)
+					   let li = new paper.Path.Line({
+							from: defC,
+							to: offL.point,
+						}) 
+						
+						item.children.forEach(ch => {
+							ch.divideAt(offL)
+							if (ch.bounds.intersects(defo.bounds)) {
+								if (onPath(ch, defC,200)) console.log('piste on käyrällä')
+								int = ch.getIntersections(li)
+								if (int.length>0) segsWithinDef.push([ch.divideAt(int[0]), offL.point])
+							}
+						})
+						
+						li.remove()
+						defC = defo.bounds.center.clone()
+					}
+					
+					segsWithinDef.forEach(s => {
+						let defV = s[1].subtract(s[0].point)
+						defV.length -= defV.length / amount
+						s[0].point = s[0].point.add(defV)
+					})
+				//}
+			//}
+
+			function onPath(path, point, tolerance) {
+				let location = path.getLocationAt(0); // Start from the beginning of the path
+				let closestPoint = location.point;
+				let closestDistance = point.getDistance(closestPoint);
+			
+				for (let offset = 0; offset <= path.length; offset += 1) {
+					location = path.getLocationAt(offset);
+					let currentPoint = location.point;
+					let distance = point.getDistance(currentPoint);
+			
+					if (distance < closestDistance) {
+						closestDistance = distance;
+						closestPoint = currentPoint;
+					}
+				}
+			
+				return closestDistance <= tolerance;
+			}
+	
+			//if (item.hasChildren()) iterate(child)
+		};		
+	
+		iterate(path);
+		return path;
+	},
+
+// PERLIN
 // 88888888ba                          88  88               
 // 88      "8b                         88  ""               
 // 88      ,8P                         88                   
@@ -3883,7 +4346,7 @@ fillGrid: (path, pat, freq, rnd, opt) => {
     },
 
 
-                                             
+// SLICE                                             
 //  ad88888ba   88  88                          
 // d8"     "8b  88  ""                          
 // Y8,          88                              
@@ -3949,7 +4412,7 @@ fillGrid: (path, pat, freq, rnd, opt) => {
 	},
 
 
-                                                                
+// ROUND                                                                
 // 88888888ba                                                  88  
 // 88      "8b                                                 88  
 // 88      ,8P                                                 88  
@@ -3962,7 +4425,12 @@ fillGrid: (path, pat, freq, rnd, opt) => {
 
 
 	// Round segments, optionally give array of segments as attribute
-	round: (path, r, sharps) => {
+	round: (path, r, sharps, debug=false) => {
+
+		if (path.segments.length == 0) {
+			console.log('Rounding: no segments at path')
+			return
+		}
 
 		if (sharps == undefined) {
 			sharps = []
@@ -3973,38 +4441,50 @@ fillGrid: (path, pat, freq, rnd, opt) => {
 
 		}
 
-		let ref = path.clone()
-
+		
+		if (sharps.length > 0) {
+			let ref = path.clone()
+			sharps.forEach(s => {
+				if (s.segment) {
+					utl.roundSegment(path, s.segment, r, sharps, ref, debug)
+				}
+			})
 	
-		sharps.forEach(s => {
-			utl.roundSegment(path, s.segment, r, sharps, ref)
-		})
-
-		ref.remove()
-
-		return path
-
+			if (debug) {
+				ref.fillColor = null
+				ref.strokeColor = 'blue'
+				ref.opacity = .5
+	
+				utl.C(ref.segments[0].point, 4, 'green')
+			}
+			else {
+				ref.remove()
+			}
+		}
 	},
 
 	// Round one segment on a path. Adds additional points at radius distance from a segment.
-	roundSegment: (path, segment, radius, ints, referencePath) => {
-		var curPoint = segment.point 
+	roundSegment: (path, segment, radius, ints, referencePath, debug=false) => {
+		
+		var curPoint = segment.point
 
 		var curOff = segment.location.offset
 		var refCurOff = referencePath.getOffsetOf(segment.point)
 
+		if (debug) utl.C(segment.point, 2, 'red')
+
 		// get radius that is adjusted smaller if intersections are close to each other
 		//Check that segment and next or previous rounded segments radiuses don't overlap
-		var radiusBandF = utl.getAdjustedRadius(referencePath, refCurOff, radius, ints)
+		var radiusBandF = utl.getAdjustedRadius(referencePath, refCurOff, radius, ints, debug)
 
 		// get offset of the location where new point should be placed
 		var off2 = utl.offsetCalc(path, curOff + radiusBandF[1])
 		
 		// Get segments that are within rounding radius and should be removed
-		var segsAtRounding = utl.getSegmentsWithinRadius(path, segment, radiusBandF)
+		var segsAtRounding = utl.getSegmentsWithinRadius(path, segment, radiusBandF, debug)
 		// allSegmentsWithinRadius.push(...segsAtRounding)
 
-		// Add latter point and set incoming handle
+			// Add latter point and set incoming handle
 		var p2 = utl.addPointToCurve( path, off2 )
 		if (p2 != undefined) {
 			p2.handleIn.length = radiusBandF[1] / 2
@@ -4023,9 +4503,12 @@ fillGrid: (path, pat, freq, rnd, opt) => {
 		segment.remove()
 		if (segsAtRounding.length > 0) {
 			for (var s = 0; s < segsAtRounding.length; s++) {
+				if (debug) utl.C(segsAtRounding[s].point, 2, 'orange')								
 				segsAtRounding[s].remove()
 			}
 		}
+
+		return 
 
 	},
 
@@ -4062,14 +4545,14 @@ fillGrid: (path, pat, freq, rnd, opt) => {
 			// console.log('result: ' + result)
 
 			if (intDist[0] / 2 < radius && intOff != curOff && intOff != null && intDist[0] > 0.1) {
-				if (debug) {
-					var con = new paper.Path.Circle({
-						center: ints[i][1].point,
-						radius: 5,
-						name:'con',
-						fillColor: 'pink'
-					})
-				}
+				// if (debug) {
+				// 	var con = new paper.Path.Circle({
+				// 		center: ints[i][1].point,
+				// 		radius: 5,
+				// 		name:'con',
+				// 		fillColor: 'pink'
+				// 	})
+				// }
 
 				var adj = intDist[0]/1000
 
@@ -4082,11 +4565,11 @@ fillGrid: (path, pat, freq, rnd, opt) => {
 				
 				if (intDist[1]) {
 					if (debug) {
-						var zer = new paper.Path.Circle({
-							center: ints[i][1].point,
-							radius: 20,
-							fillColor:'pink'
-						})
+						// var zer = new paper.Path.Circle({
+						// 	center: ints[i][1].point,
+						// 	radius: 20,
+						// 	fillColor:'pink'
+						// })
 					}
 					if (curOff > intOff) {
 						result[1] = (intDist[0] / 2) - adj // if intersection points are too close to each other, default radius to half their distance
@@ -4143,32 +4626,77 @@ fillGrid: (path, pat, freq, rnd, opt) => {
 		if (debug) {
 			var con = new paper.Path.Circle({
 				center: path.getPointAt(off1),
-				radius: 3,
-				fillColor: 'purple'
+				radius: 2,
+				fillColor: 'yellow',
+				opacity: .5
 			})
 			var con = new paper.Path.Circle({
 				center: path.getPointAt(off2),
-				radius: 3,
-				fillColor: 'cyan'
+				radius: 2,
+				fillColor: 'blue',
+				opacity:.5
 			})
 		}
 
-		for (s = 0; s < path.segments.length; s++) {
-			var myS = path.segments[s]
-			var sOff = myS.location.offset
-			
-
-			if (sOff >= off1 && sOff <= off2) {
-				result.push(myS)
-			} 
-			if (off1 > off2) { // radius over zeropoint
-				if (sOff >= nonAdjustedOff1 && sOff <= nonAdjustedOff2) {
-					result.push(myS)
+		for (var s = 0; s < path.segments.length; s++) {
+			var myS = path.segments[s];
+			var sOff = myS.location.offset;
+		
+			// Check if the segment's offset falls within the range considering loop-over
+			if (off1 <= off2) {
+				// Normal scenario: The range does not loop over the path's end
+				if (sOff >= off1 && sOff <= off2) {
+					result.push(myS);
+				}
+			} else {
+				// Loop-over scenario: The range crosses the path's end
+				if (sOff >= off1 || sOff <= off2) {
+					result.push(myS);
 				}
 			}
 		}
-
+		
 		return result
+	},
+
+//TREDE	                                                          
+// 888888888888                              88              
+//      88                                   88              
+//      88                                   88              
+//      88  8b,dPPYba,   ,adPPYba,   ,adPPYb,88   ,adPPYba,  
+//      88  88P'   "Y8  a8P_____88  a8"    `Y88  a8P_____88  
+//      88  88          8PP"""""""  8b       88  8PP"""""""  
+//      88  88          "8b,   ,aa  "8a,   ,d88  "8b,   ,aa  
+//      88  88           `"Ybbd8"'   `"8bbdP"Y8   `"Ybbd8"'  
+      
+	tree: (path, dp, ep, cols=['#004470','#009994','#ffeb91','#ee7620']) =>{
+		res = new paper.Group()
+		const getD = (pa, esc, d) => pa.add(pa.subtract(esc).normalize().multiply(d));
+		const isVis = (pa, esc, cu) => !pa.contains(getD(cu.getPointAtTime(.5), esc, -5))
+		const p = (segs, opt) => new paper.Path({segments: segs, ...opt})
+		const tngts = (cc, rad, po) => {
+			th = Math.acos(a/cc.getDistance(p))
+			d = Math.atan2(po.y-cc.y, po.x-cc.x) 
+			d1=d+th, d2=d-th
+			return [new Point(cc.x+a*Math.cos(d1),cc.y+a*Math.sin(d1)), new Point(cc.x+a*Math.cos(d2), cc.y+a*Math.sin(d2))]
+		}
+		
+		sides = [{side:path, dist:0}]
+		
+		utl.each(path.curves, cu => {
+			if (isVis(path, ep, cu)) {
+				let lo = cu.getLocationAtTime(.5)
+				let fill = cols[lo.normal.quadrant-1]
+				let di = lo.point.getDistance(ep)
+				let cp1 = cu.point1, cp2 = cu.point2
+				sides.push({side: p([cp1, getD(cp1,ep,-dp), getD(cp2,ep,-dp), cp2], {fillColor:fill, closed:true}), dist:di})
+			}
+		})
+		
+		sides.sort(function(a, b) { return b.dist - a.dist});
+    	utl.each(sides, side => {side.side.parent = res; side.side.bringToFront();} )
+    	return res
 	}
+                                                          
 
 };
