@@ -1674,6 +1674,55 @@ getPointX: (ref, from, to, x, y, pad) => {
     },
 	
 
+// FILL
+// ███████╗██╗██╗     ██╗     
+// ██╔════╝██║██║     ██║     
+// █████╗  ██║██║     ██║     
+// ██╔══╝  ██║██║     ██║     
+// ██║     ██║███████╗███████╗
+// ╚═╝     ╚═╝╚══════╝╚══════╝
+                           
+fillGrid: (path, pat, freq, rnd, opt) => {        
+    let bo = path.bounds
+    let max = Math.max(bo.height, bo.width)
+    let stp = max / freq * 1.05
+    let freqX = bo.width < max ? Math.ceil(bo.width / (bo.height/freq)) : freq 
+    let freqY = bo.height < max ? Math.ceil(bo.height / (bo.width/freq)) : freq 
+    
+    let res = new paper.Group()
+    for(let x=0;x<freqX;x++) {
+        for(let y=0;y<freqY;y++) {
+            myp = bo.topLeft.add(new paper.Point(x*stp, y*stp))
+            mypat = pat.clone()
+            mypat.position=myp.add(new paper.Point(utl.Rr(rnd, -rnd),utl.Rr(rnd, -rnd)))
+            mypat.parent=res
+            mypat.style={...opt}
+        }
+    }
+    let todel = []
+    let ints = []
+    res.children.forEach(item => {
+        let isInt = path.intersects(item)
+		let isBigger = path.isInside(item.bounds)
+        if ((!path.contains(item.bounds.center) && !isInt) || isBigger) todel.push(item)
+        if (isInt) ints.push(item)
+    })
+    
+    ints.forEach(item => {
+        let pcl = path.clone()
+        let myres = item.intersect(pcl, {trace:false})
+        if (myres instanceof paper.CompoundPath) {
+            myres.children.forEach(item => {
+               if (!path.contains(item.getPointAt(item.length/2))) item.remove()
+            })
+        }
+        todel.push(item)
+        pcl.remove()
+    })
+    
+    todel.forEach(item => item.remove())
+    return res
+},
 
                                                                   
 //  ad88888ba                      88                            
@@ -1773,6 +1822,16 @@ getPointX: (ref, from, to, x, y, pad) => {
             ? Math.pow(2, 20 * x - 10) / 2
             : (2 - Math.pow(2, -20 * x + 10)) / 2;
     },
+	skewedEaseInOutSine: (x, k = 1) => {
+		// Adjust k to ensure it doesn't skew too far
+		k = Math.max(0.1, Math.min(k, 10));
+	
+		// Calculate the skewed position
+		const skewedX = Math.pow(x, k);
+	
+		// Apply the standard sine ease-in-out function to the skewed position
+		return -0.5 * (Math.cos(Math.PI * skewedX) - 1);
+	},
     easeInBack: (x) => {
         var c1 = 1.70158;
         var c3 = c1 + 1;
@@ -3171,8 +3230,7 @@ getPointX: (ref, from, to, x, y, pad) => {
 //                                                88           
 //                                                88           
 
-	warp: (src, tgt, resolution, delSrc = false) => {
-
+	warp: (src, tgt, resolution, delSrc = false, easingF,easeV) => {
 		pa = (segs) => new paper.Path({ segments: segs })
 
 		let sides = utl.getAltSides(tgt)
@@ -3206,7 +3264,7 @@ getPointX: (ref, from, to, x, y, pad) => {
 			item.segments.forEach(s => {
 				myX = (s.point.x - bo.left) / bo.width
 				myY = (s.point.y - bo.top) / bo.height
-				pp = utl.getP(top, btm, left, right, myX, myY, tgt)
+				pp = utl.getP(top, btm, left, right, myX, myY, tgt, easingF,easeV)
 				s.point.x = pp.x
 				s.point.y = pp.y
 			})
@@ -3305,7 +3363,7 @@ getPointX: (ref, from, to, x, y, pad) => {
 		}
 	}, 
 
-	getP: (t,b,l,r,x,y,path) => {
+	getP: (t,b,l,r,x,y,path,easingF,easeV) => {
 
 		let res
 		y = y == 0 ? y = 0.001 : y
@@ -3313,10 +3371,7 @@ getPointX: (ref, from, to, x, y, pad) => {
 		
 		let inpol = new paper.Path()
 		inpol.interpolate(t,b,y) 
-		
-		//let xLi = new Path({strokeColor: 'blue'})
-		//xLi.interpolate(t,b,y) 
-		
+					
 		if (!path.contains(inpol.firstSegment.point) || !path.contains(inpol.lastSegment.point)) {
 			xLi = inpol.intersect(path, {trace:false})
 			if (xLi instanceof paper.CompoundPath) xLi = inpol.clone()
@@ -3328,6 +3383,14 @@ getPointX: (ref, from, to, x, y, pad) => {
 		
 		if (!xLi.length) console.log(t, b)
 		
+		if (easingF) {			
+			y = easingF(y, easeV);
+			x = easingF(x, easeV);
+			
+		}
+		
+		
+
 		p1 = l.getPointAt(l.length*y)
 		p2 = r.getPointAt(r.length*y)
 
@@ -3918,6 +3981,8 @@ getPointX: (ref, from, to, x, y, pad) => {
 		})
 
 		ref.remove()
+
+		return path
 
 	},
 
