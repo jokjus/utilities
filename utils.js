@@ -118,6 +118,12 @@ let utl = {
 		"neon pink fluo": "#f29ec4",
 		"neon green fluo": "#b8d483",	
 	},
+
+	getHex: (colorObject) => {
+		const colorKeys = Object.keys(colorObject);
+		const randomKey = colorKeys[Math.floor(Math.random() * colorKeys.length)];
+		return colorObject[randomKey];
+	},
 	
 	each: (array, callback) => { array.forEach(callback)},
 
@@ -183,7 +189,7 @@ let utl = {
     sinBetween: (min, max, t) => {
         return ((max - min) * Math.sin(t) + max + min) / 2;
     },
-	RBias(min, max, bias, influence) {
+	RBias: (min, max, bias, influence) => {
 		var rnd = Math.random() * (max - min) + min,   // random in range
 			mix = Math.random() * influence;           // random mixer
 		return rnd * (1 - mix) + bias * mix;           // mix full range and bias
@@ -498,7 +504,7 @@ let utl = {
         return result;
     },
 
-	mapArtOnPath: (art, path, cellHeight, cellWidth, randomizeWidth = 0, demo) => {
+	mapArtOnPath: (art, path, cellHeight, cellWidth, randomizeWidth = 0, padding=1, demo) => {
 		let p = path
 		let h = cellHeight
 		let w = cellWidth
@@ -518,16 +524,18 @@ let utl = {
 
 			// clone will be used for individual letter
 			let artClone = myart.clone()
-
+			
 			// get points of a rectangle that is along the path
 			let n = p.getNormalAt(curPos)
 			let myp = p.getPointAt(curPos)
 
 			// get the gray value 
-			nearestGray = findNearestSegment(p, curPos).colorValue
-			artClone.children.slice(1).forEach(pa => {
-				pa.strokeColor = new paper.Color(nearestGray);
-			});
+			if (grayValues) {
+				nearestGray = findNearestSegment(p, curPos).colorValue
+				artClone.children.slice(1).forEach(pa => {
+					pa.strokeColor = new paper.Color(nearestGray);
+				});
+			}
 
 			// Should probably be removed from the utility function
 			if (grayValues) {
@@ -600,7 +608,7 @@ let utl = {
 				segments: [myp, myp2, nextp2, nextp],             
 				closed: true
 			})
-			result.addChild(utl.mapArt(artClone, seg, 1))
+			result.addChild(utl.mapArt(artClone, seg, padding))
 
 			seg.remove()
 			counter++
@@ -890,8 +898,9 @@ trimap: (src, tgt, art, res) => {
 		function loop() {
 
 			let el = origs[x]
+			if ((el instanceof paper.CompoundPath && el.children.length === 0) || (el instanceof paper.Group && el.children.length === 0)) return false
 
-			if (verbose && x % 10 == 0) console.log('occlusion ' + (len - x) + '/' + len)
+			if (verbose && x % 100 == 0) console.log('occlusion ' + (len - x) + '/' + len)
 			
 			// use variables instead of accessing properties for possible speed advantage
 			let fillC, strokeC
@@ -1009,6 +1018,8 @@ trimap: (src, tgt, art, res) => {
 
 	// Do the hidden line removal
 	occlusion: (item, callback, cookieCutter = false, verbose = true, ungroupCompounds=false) => {
+		if (!item) return false 
+
 		console.log('occlusion starting')
 		console.log('ungrouping items')
 		utl.ungroup(item)
@@ -1025,7 +1036,7 @@ trimap: (src, tgt, art, res) => {
 
 		// Loop through all elements in occludable item
 		function loop() {
-			if (verbose && x % 10 == 0) console.log('processing ' + (elCount - x) + '/' + elCount)
+			if (verbose && x % 100 == 0) console.log('processing ' + (elCount - x) + '/' + elCount)
 			var el = item.children[x]
 			
 			// use variables instead of accessing properties for possible speed advantage
@@ -1246,121 +1257,88 @@ trimap: (src, tgt, art, res) => {
 	// Recursively ungroup the SVG
 	ungroup: (item, keepCompounds = true) => {
 
+		if ( !item ) return false
+
 		flag = true
+		// If item is a group
 
 		for (var i = 0; i < item.children.length; i++) {
 			var el = item.children[i]
+				if ( el.hasChildren() ) {
 
-			// If item is a group
-			if ( el.hasChildren() ) {
+					// don't process clipping compound paths
+					// if (el.clipMask && el instanceof paper.CompoundPath ) {
+					// 	continue
+					// }
+					if (el instanceof paper.CompoundPath && el.closed && keepCompounds) {				
+						continue
+					}
+					
+					// Have to deal with clipping groups first
+					if (el.clipped) utl.flattenClipping(el)
 
-				// don't process clipping compound paths
-				// if (el.clipMask && el instanceof paper.CompoundPath ) {
-				// 	continue
-				// }
-				if (el instanceof paper.CompoundPath && el.closed && keepCompounds) {				
-					continue
-				}
+					// Move children to parent element and remove the group
+					el.parent.insertChildren(el.index, el.removeChildren())
+					el.remove()
+					flag = false
 				
-				// Have to deal with clipping groups first
-				if (el.clipped) utl.flattenClipping(el)
 
-				// Move children to parent element and remove the group
-				el.parent.insertChildren(el.index, el.removeChildren())
-				el.remove()
-				flag = false
-			}
-
-			// Recurse as long as there are groups left
-			if (!flag) {
-				utl.ungroup(item)
+				// Recurse as long as there are groups left
+				if (!flag) {
+					utl.ungroup(item)
+				}
 			}
 		}
+		
 	},
 
-	// Flattens a clipping group
-	flattenClipping: (clipGroup) => {
+// Flattens a clipping group
+flattenClipping: (clipGroup) => {
+	// Check if the group has children and if the first child is a clipping mask
+	if (clipGroup.children.length > 0) {
 
+		let mask = clipGroup.children.find(child => child.clipMask === true)
+		if (!mask) return false
+		if (mask instanceof paper.Shape) mask = mask.toPath()
+		if (mask.closed == false) clipMask.closePath()
+		
 		// Ungroup everything inside a clipping group
 		utl.ungroup(clipGroup)
 
-		// Find the clipping mask (it should be the first layer but cannot be certain)
-		var clipMasks = clipGroup.children.filter(obj => {
-			return obj.clipMask === true
-		})
-
-		var clipMaskOrig = clipMasks[0]
-
-		// if clipmask element is a shape, let's convert to a path first
-		// this is ugly but didn't yet find other way to prevent extra elements from generating
-		if (clipMaskOrig.type != undefined) {
-			var clipMask = clipMaskOrig.toPath()		
-		}
-		else  {
-			var clipMask = clipMaskOrig
-		}
-
-		// Close clipping mask for more predicatable results
-		if (clipMask.closed == false) clipMask.closePath()
-		
 		// Get the actual clipped layers
-		var innerLayers = clipGroup.children.filter(obj => {
-			return obj.clipMask === false
-		})
-
+		let inners = clipGroup.children.filter(obj => { return obj.clipMask === false })
+		let torem = [mask]
 		
-
 		// Loop through clipped layers and get the boolean intersection against clone of the clipping mask
-		for (var x = 0; x < innerLayers.length; x++) {
-			var innerOrig = innerLayers[x]
-			var mask = clipMask.clone()
-			mask.clipMask = false
-			let origFill = innerOrig.fillColor
-			let origStrokeColor = innerOrig.strokeColor
-			let origStrokeWidth = innerOrig.strokeWidth
-
-			// if inner element is a shape, let's convert to a path first
-			// this is ugly but didn't yet find other way to prevent extra elements from generating
-			var inner = inner instanceof paper.Shape ? innerOrig.toPath() : innerOrig
-			// if (innerOrig.type != undefined) {
-			// 	var inner = innerOrig.toPath()	
-			// }
-			// else {
-			// 	var inner = innerOrig
-			// }
-
-			// Use suitable tracing method for open and closed paths
-			var traceMethod = false
-			if (innerOrig.closed || innerOrig.type != undefined) traceMethod = true
-
-			// The boolean operation
-			var newEl = inner.intersect(mask, {trace: traceMethod})
-
-			// If the result is a compound path, restore original appearance after boolean operation	
-			if (newEl instanceof paper.CompoundPath) {
-				newEl.children.forEach(el => el.fillColor = origFill)
-				newEl.children.forEach(el => el.strokeColor = origStrokeColor)
-				newEl.children.forEach(el => el.strokeWidth = origStrokeWidth)
+		for (let x = 0; x < inners.length; x++) {
+			let el = inners[x]
+			
+			if (!el.intersects(mask) && !el instanceof paper.CompoundPath) {
+				if (!mask.contains(el.bounds.center)) torem.push(el)
+				continue
 			}
-
-			// clean up
-			mask.remove()
-			inner.remove()
-			innerOrig.remove()
+			
+			else {
+				if(el instanceof paper.Shape) el = el.toPath() // if inner element is a shape, let's convert to a path first
+				let trace = el.closed ? true : false // Use suitable tracing method for open and closed paths
+				
+				let newEl = el.intersect(mask, {trace: trace})
+				
+				clipGroup.insertChild(el.index, newEl)
+				newEl.style = el.style // Keep original style for the intersected paths
+				el.remove()
+			}
 		}
 		
 		//clean up	
-		clipMask.remove()
-		clipMaskOrig.remove()
+		torem.forEach(e => e.remove())
 		clipGroup.clipped = false
 
-		// clean up stray points
-		for (let i=clipGroup.children.length-1;i>0;i--){
-			let curEl = clipGroup.children[i]
-			if (curEl != undefined && curEl.length == 0) curEl.remove()
-		}
+		return clipGroup
+	}
+	return false	
 
-	},
+},
 
 // HATCH                                                         
 // 88        88                                  88           
@@ -1472,8 +1450,8 @@ trimap: (src, tgt, art, res) => {
 
 	// Hatch fill any shape	
 	hatchFillAny: (origpath, penW, angle, color, debug=false, crossHatch=false, zigzag=true) => {
-		mm=2.83465
-		mindim=Math.min(origpath.bounds.width,origpath.bounds.height)
+		let mm=2.83465
+		let mindim=Math.min(origpath.bounds.width,origpath.bounds.height)
 
 		if (origpath == null || mindim < 1 ){
 			console.log('path bypassed')
@@ -1487,7 +1465,7 @@ trimap: (src, tgt, art, res) => {
 		let origColor = origpath.fillColor ? origpath.fillColor : 'black'
 		if (color) origColor = color
 		
-		resG = new paper.Group({pivot: commonPivot})
+		let resG = new paper.Group({pivot: commonPivot})
 		
 		let hatchAreaOff=penW, edgeOff=penW, edgeLayers=1
 		if (Array.isArray(penW)) {
@@ -1671,7 +1649,7 @@ trimap: (src, tgt, art, res) => {
 		
 					// Every other end connected to create zigzag pattern
 					for (var k = 0; k < myList.length; k++) {
-						if (!zigzag) continuousLine = new paper.Path({strokeColor: path.strokeColor});
+						if (!zigzag) continuousLine = new paper.Path({strokeColor: path.strokeColor,strokeWidth:hatchAreaOff});
 
 						if (isEven(k)) {
 							addToContinuousLine(0)
@@ -1714,10 +1692,10 @@ trimap: (src, tgt, art, res) => {
 
 		return resG
 
-		function outline(path) {
-			path.fillColor = null;
-			path.strokeWidth = 1;
-		}
+		// function outline(path) {
+		// 	path.fillColor = null;
+		// 	path.strokeWidth = 1;
+		// }
 		
 		function isEven(n) {
 			return n % 2 == 0;
@@ -2261,12 +2239,49 @@ fillGrid: (path, pat, freq, rnd, opt) => {
 	randomPath: (pointCount, minL, maxL, radius, boundingEl, opt, smooth=true, view) => {
 		const R = (a=1)=>Math.random()*a;
 		const Rpo = () => paper.Point.random() * view.bounds.bottomRight
+		const getRPoint = (curp, points, minL, maxL, radius, angle, boundingEl, view) => {
+			tries = 0
+			vb = view.bounds
+			const R = (a=1)=>Math.random()*a;
+			
+			while (true) {
+				dir = tries % 2 != 0 ? -1 : 1
+				rL = minL + R(maxL-minL + tries)
+				rA = curp[1] + (dir * R(50 + tries))
+				myP = curp[0].add(new paper.Point({angle: rA, length: rL}))
+				
+				const checkBounds = boundingEl ? isOutGivenBounds : isOutBounds;
+		
+				if (!checkBounds(myP, boundingEl) && !isNearAnyPoint(myP, points, radius)) {
+					return [myP, rA];
+				}
+				
+				if (tries > 200) break
+				
+				tries++
+			}  
+		
+			function isOutBounds(p) {
+				if (p.x < 0 || p.x > vb.right || p.y < 0 || p.y > vb.bottom) return true
+			}
+			
+			function isOutGivenBounds(p, boundingElement) {
+				return !boundingElement.contains(p)
+			}
+			
+			function isNearAnyPoint(p, points, r) {
+				r = r / 2;
+				return points.some(cp => 
+					cp.x > p.x - r && cp.x < p.x + r && cp.y > p.y - r && cp.y < p.y + r
+				)
+			}
+		}
 	
 		segs = []
 		currentP = boundingEl ? [boundingEl.interiorPoint, R(360)] : [Rpo(), R(360)]
 		
 		for (let i=0;i<pointCount;i++) {
-			newP = utl.getRPoint(currentP, segs, minL, maxL, radius, 60, boundingEl, view)
+			newP = getRPoint(currentP, segs, minL, maxL, radius, 60, boundingEl, view)
 			if (newP == undefined) continue
 			segs.push(newP[0])
 			currentP = newP
@@ -2276,45 +2291,9 @@ fillGrid: (path, pat, freq, rnd, opt) => {
 		if (smooth) p.smooth()
 	
 		return p
+		
 	},
 	
-	getRPoint: (curp, points, minL, maxL, radius, angle, boundingEl, view) => {
-		tries = 0
-		vb = view.bounds
-		const R = (a=1)=>Math.random()*a;
-		
-		while (true) {
-			dir = tries % 2 != 0 ? -1 : 1
-			rL = minL + R(maxL-minL + tries)
-			rA = curp[1] + (dir * R(50 + tries))
-			myP = curp[0].add(new paper.Point({angle: rA, length: rL}))
-			
-			const checkBounds = boundingEl ? isOutGivenBounds : isOutBounds;
-	
-			if (!checkBounds(myP, boundingEl) && !isNearAnyPoint(myP, points, radius)) {
-				return [myP, rA];
-			}
-			
-			if (tries > 200) break
-			
-			tries++
-		}  
-	
-		function isOutBounds(p) {
-			if (p.x < 0 || p.x > vb.right || p.y < 0 || p.y > vb.bottom) return true
-		}
-		
-		function isOutGivenBounds(p, boundingElement) {
-			return !boundingElement.contains(p)
-		}
-		
-		function isNearAnyPoint(p, points, r) {
-			r = r / 2;
-			return points.some(cp => 
-				cp.x > p.x - r && cp.x < p.x + r && cp.y > p.y - r && cp.y < p.y + r
-			)
-		}
-	},
 
 	blob: (length, rad, dns, smoothness, opt) => {
 		let checkA = (a1, a2, tole=40) => Math.abs(a1 - a2) < tole
@@ -2449,7 +2428,7 @@ fillGrid: (path, pat, freq, rnd, opt) => {
 	},
 
 	// Asterisk star
-	asterisk: (p, cnt, rad, w, opt, bgColor) => {
+	asterisk: (p, rad, w, cnt=2, opt, bgColor) => {
 		const r = (c, sz, opt) => new paper.Path.Rectangle({point: c.subtract(new paper.Point(sz[0]/2, sz[1]/2)), size:sz, ...opt})
 		
 		let fig = new paper.Path()
@@ -2698,6 +2677,15 @@ fillGrid: (path, pat, freq, rnd, opt) => {
 			path.addSegments(newSegments);
 		}
 	},
+
+	// releases a compound path as Illustrator does it
+	release: (cp) => {
+        if (cp instanceof CompoundPath) {
+            var items = cp.children.slice()
+            cp.parent.addChildren(items)
+            cp.remove()
+        }
+    },
 
 
 // GRID                                           
@@ -2950,6 +2938,146 @@ fillGrid: (path, pat, freq, rnd, opt) => {
 					
 		return res
 	},
+	// Generates circular grid with specified ring and sector counts
+	genCircGrid: (cnt,rad,rings,secs,minSecL) => {
+		const L = (n, f) => { for (let i=0;i<n;i++) if (f(i) === false) { break;} }
+		const pa = (segs, opt) => new paper.Path({segments:segs, ...opt})
+		const pev = (a,l) => new paper.Point({angle:a,length:l})
+		const div360 = (n) => {
+			let res = []
+			L(n, ()=>res.push(Math.random() * 360))
+			res.sort(function(a, b) { return a - b; })
+			return res
+		}
+		const midAngle = (a1,a2) => {
+			let dif = (360+a2-a1)/2;
+			let mid = a2-dif<0 ? a1+dif : a2-dif
+			return mid
+		}
+		const pv = (a,l) => new paper.Point({angle:a,length:l})
+		
+		let res = new paper.Group()
+		let oneW = rad/rings
+		
+		L(rings, (idx)=> {
+			
+			let myDivs = div360(secs)
+			
+			L(secs, (ix)=> {
+				let cur, nxt, a1, a2, a12, p1, p2, p3, p4, arc1, arc2;
+
+				if(ix==secs-1) {
+					cur=ix
+					nxt=0
+				}
+				else {
+					cur=ix
+					nxt=ix+1
+				}
+				
+				a1 = myDivs[cur]
+				a2 = myDivs[nxt]
+				a12 = a1+(a2-a1)/2
+				if(ix==secs-1) a12 = midAngle(a1,a2)
+				
+				p1 = cnt.add(pev(a1, oneW * idx))
+				p24 = cnt.add(pev(a12, oneW * (idx + 1)))
+				p2 = p1.add(pev(a1, oneW))
+				p3 = cnt.add(pev(a2, oneW * idx))
+				p13 = cnt.add(pev(a12, oneW * idx))
+				p4 = p3.add(pev(a2, oneW))
+				
+				arc1 = new paper.Path.Arc({from:p2, to:p4, through:p24})
+				arc2 = new paper.Path.Arc({from:p1, to:p3, through:p13})
+				arc2.reverse()
+				let seg = pa([...arc1.segments, ...arc2.segments], {closed:true})
+				res.addChild(seg)
+			})
+		})
+		
+		return res
+	},
+
+	// Generated grid with exact column and row counts, but randomly divided row heights per column
+	genGrid: (gridWidth, gridHeight, xCount, yCount, gap, minHeight) =>{
+		var group = new paper.Group(),
+			rectWidth = (gridWidth - (xCount - 1) * gap) / xCount;
+	
+		for (var i = 0; i < xCount; i++) {
+			var availableHeight = gridHeight - (yCount - 1) * gap - yCount * minHeight,
+				randomTotal = 0,
+				randomValues = [];
+	
+			// Generate random values and calculate their total
+			for (var j = 0; j < yCount; j++) {
+				var rand = Math.random();
+				randomValues.push(rand);
+				randomTotal += rand;
+			}
+	
+			// Calculate heights ensuring each is at least minHeight
+			var heights = randomValues.map(function(rand) {
+				return minHeight + (rand / randomTotal) * availableHeight;
+			});
+	
+			var xPos = i * (rectWidth + gap),
+				yPos = 0;
+	
+			// Create rectangles with calculated heights
+			heights.forEach(function(height) {
+				group.addChild(new paper.Path.Rectangle({
+					point: [xPos, yPos],
+					size: [rectWidth, height],
+					insert:false                
+				}));
+				yPos += height + gap;
+			});
+		}
+		return group;
+	},
+
+	// Randomly makes a grid of clipping groups that contain pieces from items. Grid should be a group.
+	applyGrid: (grid, items, weights, flatten) => {
+		res = new paper.Group()
+		var cumulativeWeights = [];
+		var totalWeight = 0;
+		for (var i = 0; i < weights.length; i++) {
+			totalWeight += weights[i];
+			cumulativeWeights.push(totalWeight);
+		}
+			
+		var paths = grid.children;
+		for (var i = 0; i < paths.length; i++) {
+			var path = paths[i];
+	
+			var clipGroup = new paper.Group({clipped: true});
+	
+			// Clone the path and add it as the clipping mask (first child)
+			var pathClone = path.clone();
+			pathClone.clipMask = true
+			clipGroup.addChild(pathClone);
+	
+			// Randomly select an item based on weights
+			var rand = Math.random() * totalWeight;
+			var itemIndex = 0;
+			for (var j = 0; j < cumulativeWeights.length; j++) {
+				if (rand < cumulativeWeights[j]) {
+					itemIndex = j;
+					break;
+				}
+			}
+	
+			var itemToInsert = items[itemIndex].clone();
+			clipGroup.addChild(itemToInsert);
+			if(flatten) utl.flattenClipping(clipGroup)
+			res.addChild(clipGroup)
+			//	project.activeLayer.addChild(clipGroup);
+		}
+	
+		items.forEach(i=>i.remove())
+		return res
+	},
+	
 
 // FOLDING                                                                   
 // 88888888888           88           88  88                            
@@ -3791,7 +3919,7 @@ fillGrid: (path, pat, freq, rnd, opt) => {
 
 		let r2 = new paper.Path.Rectangle(r);
 		r2.strokeWidth = 1;
-		r2.strokeColor = 'black';
+		r2.strokeColor = '#001';
 		r2.fillColor = bgCol ? bgCol : null
 
 		if (showGuides) {
@@ -3859,7 +3987,7 @@ fillGrid: (path, pat, freq, rnd, opt) => {
        
     // Shift slices of image to opposite directions -----------------------------------------
     shift: (item, slizeSize, amount, vertical = false, ungroup = false) => {
-		console.log('distorting: shift')
+		// console.log('distorting: shift')
 		let ib = item.bounds
 
 		let max = vertical ? ib.height : ib.width
@@ -3965,9 +4093,7 @@ fillGrid: (path, pat, freq, rnd, opt) => {
 		item.remove()
 
 		return resGroup
-
 		
-
 		// Helpers
 
 		function drawTri(inp, points) {
@@ -4659,6 +4785,102 @@ fillGrid: (path, pat, freq, rnd, opt) => {
 		return result
 	},
 
+	roundd: (p, r) => {
+		if (p instanceof paper.CompoundPath) {
+			p.children.forEach(child => utl.roundd(child, r));
+		} else {
+			let nS = [];
+			let round = [];
+			let pL = p.length;
+	
+			const findNCorner = (p, s = 0, dir = 'next') => {
+				let segs = p.segments, len = segs.length;
+				for (let i = 1; i <= len; i++) {
+					let idx = dir === 'next' ? (s + i) % len : (s - i + len) % len;
+					if (!segs[idx].isSmooth()) return segs[idx];
+				}
+				return null;
+			};
+	
+			// First pass: Collect rounding ranges for sharp corners
+			p.segments.forEach((s, i) => {
+				if (!s.isSmooth()) {
+					let sO = s.location.offset;
+					let ps = findNCorner(p, i, 'prev');
+					let ns = findNCorner(p, i, 'next');
+					let psO = ps.location.offset;
+					let nsO = ns.location.offset;
+	
+					// Distances to previous and next corners
+					let dP = (sO - psO + pL) % pL;
+					let dN = (nsO - sO + pL) % pL;
+	
+					let pO = dP / 2 > r ? (sO - r + pL) % pL : (sO - dP / 2 + pL) % pL;
+					let nO = dN / 2 > r ? (sO + r) % pL : (sO + dN / 2) % pL;
+	
+					// Store the rounding range with the index of the sharp corner
+					round.push({ start: pO, end: nO, index: i });
+				}
+			});
+	
+			// Second pass: Process segments and exclude smooth segments within rounding ranges
+			p.segments.forEach((s, i) => {
+				let sO = s.location.offset;
+	
+				// Check if the segment is within any rounding range
+				let withinRounding = false;
+				for (let range of round) {
+					if (range.start <= range.end) {
+						if (sO >= range.start && sO <= range.end) {
+							withinRounding = true;
+							break;
+						}
+					} else {
+						// Handle wrapping around the path length
+						if (sO >= range.start || sO <= range.end) {
+							withinRounding = true;
+							break;
+						}
+					}
+				}
+	
+				if (s.isSmooth()) {
+					if (!withinRounding) {
+						nS.push(s.clone());
+					}
+					// If within rounding range, do not include the smooth segment
+				} else {
+					// Find the rounding range for this corner
+					let range = round.find(range => range.index === i);
+					if (range) {
+						// Create the rounded corner
+						let s1 = p.clone({ insert: false }).divideAt(range.start);
+						let s2 = p.clone({ insert: false }).divideAt(range.end);
+						let h1 = s.point.subtract(s1.point).divide(2);
+						let h2 = s.point.subtract(s2.point).divide(2);
+						s1.handleOut = h1;
+						s2.handleIn = h2;
+	
+						// Adjust angles for handles
+						[s1, s2].forEach(seg => {
+							let hOA = seg.handleOut.angle;
+							let hIA = seg.handleIn.angle;
+							if (hIA !== 0) {
+								seg.handleOut.angle = hOA < 0 ? hIA + 180 : hIA - 180;
+							}
+						});
+						nS.push(s1, s2);
+					} else {
+						nS.push(s.clone());
+					}
+				}
+			});
+	
+			p.segments = nS;
+		}
+	},
+	
+
 //TREDE	                                                          
 // 888888888888                              88              
 //      88                                   88              
@@ -4696,7 +4918,312 @@ fillGrid: (path, pat, freq, rnd, opt) => {
 		sides.sort(function(a, b) { return b.dist - a.dist});
     	utl.each(sides, side => {side.side.parent = res; side.side.bringToFront();} )
     	return res
-	}
-                                                          
+	},
 
+                                                                              
+// 88888888ba                           88         88                            
+// 88      "8b                          88         ""                            
+// 88      ,8P                          88                                       
+// 88aaaaaa8P'  ,adPPYYba,   ,adPPYba,  88   ,d8   88  8b,dPPYba,    ,adPPYb,d8  
+// 88""""""'    ""     `Y8  a8"     ""  88 ,a8"    88  88P'   `"8a  a8"    `Y88  
+// 88           ,adPPPPP88  8b          8888[      88  88       88  8b       88  
+// 88           88,    ,88  "8a,   ,aa  88`"Yba,   88  88       88  "8a,   ,d88  
+// 88           `"8bbdP"Y8   `"Ybbd8"'  88   `Y8a  88  88       88   `"YbbdP"Y8  
+//                                                                   aa,    ,88  
+//                                                                    "Y8bbdP"   
+// Requires geometryutil.js
+pack: (container, count, weights, packArr, palette, gap) =>{
+		const po = (x,y) => new paper.Point(x,y)
+		const Rap = (arr) => {
+			if (arr.every(item => item === undefined)) return undefined
+			let item;
+			do {
+			  item = arr[Math.floor(Math.random() * arr.length)];
+			} while (item === undefined);
+			return item;
+		  }
+
+
+		container.data.nfp = paperjsPathToNFP(container)
+		let contArea = Math.abs(container.area)
+		let usedArea = 0
+
+		let packed = []
+		let elems = []
+
+		L(count, () => {
+			el = utl.weightedR(packArr, weights)     
+			elems.push(el[0]({ strokeColor: 'black', fillColor: utl.getR(palette) }, ...el[1]))
+		})
+		elems.forEach(e=>e.position=po(0,0))
+		elems.sort((a, b) => Math.abs(b.area) - Math.abs(a.area))
+
+		
+		for (idx=0;idx<elems.length;idx++) {
+				
+			if (usedArea > contArea * 0.75) {
+				finalizePacking()
+				return
+			}
+			
+			let newS = elems[idx].clone()
+			if (gap) {bw=newS.bounds.width; newS.scale((bw+gap)/bw) }
+			newS.rotate(utl.R(360))
+			let placed = false
+			
+			let contNfp = generateNoFitPolygon(container, newS, true, true)
+			
+			if (contNfp) {
+				contNfp = contNfp[0]
+
+				if (packed.length == 0) { //put first element somewhere along the container Nfp, there's a guaranteed place
+					newS.position = contNfp.getPointAt(utl.R(contNfp.length))
+					newS.data.nfp = paperjsPathToNFP(newS)
+					packed.push(newS)
+					usedArea += newS.area
+					placed=true
+
+				} else {
+					let union = new paper.Path({ insert: false });
+					let nfpArr = []
+					let allConvex = true
+					packed.forEach(pa => {
+						let myNfp = newS.data.isConvex ? nfp(pa, newS) : generateNoFitPolygon(pa, newS, false, false)[0] //for faster performance, use simple method for convex shapes
+						
+						if (myNfp) nfpArr.push(myNfp)
+						if (!newS.data.isConvex) allConvex = false
+					});
+	
+					union = allConvex ? batchUnion(nfpArr, false) : unionPaths(nfpArr) //use clipper if all shapes are convex for performance
+					// union = unionPaths(nfpArr) //use clipper if all shapes are convex for performance
+					
+					union = union instanceof paper.CompoundPath ? Rap(union.children) : union
+					// union = union instanceof CompoundPath ? union.children.find(c => c.length > 0) : union
+					if (union.closed) union.splitAt(0);
+					// console.log(union)
+					
+					// union = union.intersects(contNfp) ? union.intersect(contNfp, { trace: false, insert: false }) : union
+					union = union.intersect(contNfp, { trace: false, insert: false })
+					if (union instanceof paper.CompoundPath) union = union.children.find(c => c.length > 0)
+					
+					if (union) {
+						if (union.closed) union.splitAt(0)
+
+						let newPos
+						if (union.length > 0) {
+							myR = R(union.length)
+							newPos = union.getPointAt(myR)
+						} 
+						// let newPos = union.length !== 0 ? union.getPointAt(R(union.length)) : union.segments[0].point
+						if (newPos) {
+							newS.position = newPos;
+							if (gap) newS.scale(bw / (bw + gap))
+							newS.data.nfp = paperjsPathToNFP(newS)
+							packed.push(newS)
+							usedArea += newS.area
+							placed = true
+						}
+						union.remove()
+					}
+				}
+				if (!placed) {
+					newS.remove();
+				}
+			}		 
+		}
+
+		return(finalizePacking())
+
+		function finalizePacking() {
+			elems.forEach(e => e.remove());
+			let full = new paper.Group([...packed]);
+			console.log(packed.length + '/' + count);
+			return full
+		}
+		function paperjsPathToNFP(paperPath) {
+			// Convert a Paper.js Path object into an array of {x, y} points
+			let nfpFormat = [];
+			paperPath.segments.forEach(segment => {
+				nfpFormat.push({
+					x: segment.point.x,
+					y: segment.point.y
+				});
+			});
+			return nfpFormat;
+		}
+		function nfpToPaperjsPath(nfpResult) {
+			// Convert the NFP result into a Paper.js Path object
+			let paperPath = new paper.Path({insert:false});
+			nfpResult.forEach(point => {
+				paperPath.add(new paper.Point(point.x, point.y));
+			});
+			paperPath.closed = true; // Ensure the path is closed
+			return paperPath;
+		}
+		function generateNoFitPolygon(pathA, pathB, inside, searchEdges) {
+			// Step 1: Convert Paper.js paths to NFP format
+			pathA.data.nfp = pathA.data.nfp || paperjsPathToNFP(pathA);
+			pathB.data.nfp = pathB.data.nfp || paperjsPathToNFP(pathB);
+			// Step 2: Run the noFitPolygon algorithm
+			let nfpResult = GeometryUtil.noFitPolygon(pathA.data.nfp, pathB.data.nfp, inside, searchEdges);
+			
+			// Step 3: Convert NFP result back to Paper.js Path format
+			if (nfpResult && nfpResult.NFPs && nfpResult.NFPs.length > 0) {
+				let res = nfpResult.NFPs.map(nfpPolygon => nfpToPaperjsPath(nfpPolygon));
+			
+				const btmP = (path) => { return path.segments.reduce((btmS, curS) => { return curS.point.y > btmS.point.y ? curS : btmS;}, path.segments[0]) };
+		
+				// This doesn't work if nfp is inside pathB
+				if (!inside) {
+					delta = pathB.bounds.center.subtract(btmP(pathB).point)
+					res.forEach(p => p.translate(delta))
+				}
+				else {
+					res.forEach(p => p.position = pathA.bounds.center)
+				}
+				return res
+			}
+			return null;
+		}
+		function nfp(po1,po2) {
+			v = (s1,s2) => s1.point.subtract(s2.point)
+			vecs = []
+			
+			vecgen = (pol, dir) => {
+				segs = pol.segments
+				sLe=segs.length
+				for (let s=0;s<sLe;s++) {
+					vecs.push( v(segs[dir?s:(s+1)%sLe],segs[(dir?(s+1)%sLe:s)]) )
+				}
+			}
+			vecgen(po1, true)
+			vecgen(po2, false)
+			vecs.sort((a, b) => b.angle - a.angle);
+			
+			let nfp = new paper.Path({segments:[vc.clone()], insert: false})
+			curS = nfp.segments[0].point
+			
+			vecs.forEach(v => {
+				newS = curS.add(v)
+				nfp.add(newS)
+				curS = newS
+			})
+			
+			nfp.position = po1.bounds.center
+			
+			return nfp
+		}
+		function unionPaths(paths) {
+			if (paths.length === 0) return null;
+			if (paths.length === 1) return paths[0].clone();
+		
+			let result = paths[0].clone();
+			for (let i = 1; i < paths.length; i++) {
+				result = result.unite(paths[i], {insert: false});
+			}
+		
+			return result;
+		}
+		function batchUnion(polygons, insert = true) {
+			// Function to resample paths for better precision (optional)
+			function resample(path, segments = 100) {
+				path.flatten(segments);
+			}
+		
+			// Convert Paper.js paths (including compound paths) to Clipper.js format
+			function convertToClipperPaths(paperPath) {
+				let clipperPaths = [];
+				if (paperPath instanceof paper.CompoundPath) {
+					// Handle compound path
+					paperPath.children.forEach(child => {
+						let clipperPath = child.segments.map(segment => ({
+							X: segment.point.x,
+							Y: segment.point.y
+						}));
+						clipperPaths.push(clipperPath);
+					});
+				} else {
+					// Handle regular path
+					let clipperPath = paperPath.segments.map(segment => ({
+						X: segment.point.x,
+						Y: segment.point.y
+					}));
+					clipperPaths.push(clipperPath);
+				}
+				return clipperPaths;
+			}
+		
+			// Flatten and convert all paths to Clipper.js format
+			let allClipperPaths = [];
+			polygons.forEach(p => {
+				resample(p, 1); // Flatten the path for better precision
+				let clipperPaths = convertToClipperPaths(p);
+				allClipperPaths = allClipperPaths.concat(clipperPaths);
+			});
+		
+			// Initialize Clipper
+			let clipper = new ClipperLib.Clipper();
+		
+			// Add all paths to Clipper
+			clipper.AddPaths(allClipperPaths, ClipperLib.PolyType.ptSubject, true);
+		
+			// Use PolyTree to handle compound paths with holes
+			let solutionTree = new ClipperLib.PolyTree();
+			clipper.Execute(
+				ClipperLib.ClipType.ctUnion,
+				solutionTree,
+				ClipperLib.PolyFillType.pftNonZero,
+				ClipperLib.PolyFillType.pftNonZero
+			);
+		
+			// Convert PolyTree to Paper.js Path or CompoundPath
+			function polyTreeToPathOrCompoundPath(polyNode, insert) {
+				let children = polyNode.Childs();
+				if (children.length === 0) {
+					// No paths found, return an empty path
+					return new paper.Path({ insert: insert });
+				} else if (children.length === 1 && !children[0].IsHole() && children[0].ChildCount() === 0) {
+					// Single path without holes, return a simple Path
+					let outerPath = new paper.Path({ insert: insert });
+					children[0].Contour().forEach(point => {
+						outerPath.add(new paper.Point(point.X, point.Y));
+					});
+					outerPath.closePath();
+					return outerPath;
+				} else {
+					// Multiple paths or a single path with holes, return a CompoundPath
+					let compoundPath = new paper.CompoundPath({ insert: insert });
+		
+					function addToCompoundPath(node) {
+						let path = new paper.Path({ insert: insert });
+						node.Contour().forEach(point => {
+							path.add(new paper.Point(point.X, point.Y));
+						});
+						path.closed = true;
+		
+						if (node.IsHole()) {
+							path.clockwise = false; // Mark it as a hole
+						}
+		
+						compoundPath.addChild(path);
+		
+						// Recursively add children (if any)
+						node.Childs().forEach(child => addToCompoundPath(child));
+					}
+		
+					children.forEach(child => addToCompoundPath(child));
+		
+					return compoundPath;
+				}
+			}
+		
+			let resultPath = polyTreeToPathOrCompoundPath(solutionTree, insert);
+		
+			return resultPath;
+		}
+		
+
+	}
 };
+
+
